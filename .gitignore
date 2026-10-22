@@ -1,6 +1,7 @@
 .env
 .env.*
+!.env.example
 .claude/settings.local.json
 .idea/
 __pycache__/
-.venv/
+.venv/no
