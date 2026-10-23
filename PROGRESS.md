@@ -15,7 +15,7 @@ Newest entries first. One entry per working day: what was done, what was decided
 - HTML run report in `data/out/`: items above and below the threshold, failed ratings, already reported items, prefilter summary per rule.
 - First item above the threshold: 573696 (SharePoint: Copilot Search in SharePoint and OneDrive), score 8.
 - H-MEM "already reported" done: reference vendored unchanged in `vendor/hmem/` (Meterless/Meterless, commit `1742dec`), exact URL first, then similarity with a strict threshold (0.999); conformance 13/13 and a two-run proof (the second run reports the item as already reported via URL).
-- Organizer confirmed on Discord (2026-10-23, 14:12) that the vendored H-MEM reference in a working feature satisfies the engine requirement.
+- Meterless (sponsor) confirmed in the HackOS 'Help Meterless' channel (2026-10-23, 14:12) that the vendored H-MEM reference in a working feature satisfies the engine requirement.
 - 71 tests green.
 
 **Decided**
