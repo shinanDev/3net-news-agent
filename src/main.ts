@@ -1,6 +1,7 @@
 // Entry point. Wires the adapters and starts one pipeline run.
 // SOURCE=stub|zetaris selects the news source, RATER=stub|nightshift the rating model
-// (both default stub). Memory and output are still placeholders.
+// (both default stub), OUTPUT=html|console the run report (default html, data/out/).
+// Memory is still a placeholder.
 
 import {
   ConsoleOutput,
@@ -8,6 +9,7 @@ import {
   StubNewsSource,
   StubRatingModel,
 } from "./adapters/stub/stubs.ts";
+import { HtmlFileOutput } from "./adapters/html/html-file-output.ts";
 import { NightshiftClient } from "./adapters/nightshift/nightshift-client.ts";
 import { NightshiftRatingModel } from "./adapters/nightshift/nightshift-rating-model.ts";
 import { loadProfile, type RelevanceProfile } from "./domain/profile.ts";
@@ -24,6 +26,7 @@ import {
   intEnv,
   loadEnv,
   optionalIntEnv,
+  outputKind,
   raterKind,
   requireEnv,
   sourceKind,
@@ -77,12 +80,13 @@ const rules = [
   }),
 ];
 const maxItems = optionalIntEnv("RATE_MAX_ITEMS");
+const output = outputKind() === "html" ? new HtmlFileOutput() : new ConsoleOutput();
 const { log, logPath } = await runPipeline(
   {
     source,
     memory: new InMemoryMemoryStore(),
     model,
-    output: new ConsoleOutput(),
+    output,
   },
   { rules, ...(maxItems !== undefined && { maxItems }) },
 );
@@ -90,3 +94,4 @@ const { log, logPath } = await runPipeline(
 for (const s of log.stages) console.log(`${s.stage.padEnd(10)} ${s.inputCount} -> ${s.outputCount}`);
 if (source instanceof ZetarisNewsSource) console.log(`Snapshot: ${source.lastSnapshotPath}`);
 console.log(`Run log: ${logPath}`);
+if (output instanceof HtmlFileOutput) console.log(`Report: ${output.lastPath}`);

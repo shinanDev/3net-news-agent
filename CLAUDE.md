@@ -48,6 +48,7 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `RATING_PROFILE` | path to the relevance profile, default `config/profile.m365.json` |
 | `RATING_STRICT_MODEL` | `true` (default): a rating fails if the response model differs from `METERLESS_MODEL` |
 | `NIGHTSHIFT_TIMEOUT_MS` | timeout per Nightshift request in ms, default `120000` |
+| `OUTPUT` | run report: `html` (default, file in `data/out/`) or `console` |
 
 Keep `.env.example` in sync (names only, no values).
 

@@ -49,6 +49,16 @@ export function stringEnv(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
 }
 
+export type OutputKind = "html" | "console";
+
+export function outputKind(): OutputKind {
+  const value = process.env["OUTPUT"]?.trim() || "html";
+  if (value !== "html" && value !== "console") {
+    throw new Error(`environment variable OUTPUT must be "html" or "console"`);
+  }
+  return value;
+}
+
 /** "true"/"false" (case-insensitive); empty or unset falls back to the default. */
 export function boolEnv(name: string, fallback: boolean): boolean {
   const value = process.env[name]?.trim().toLowerCase();

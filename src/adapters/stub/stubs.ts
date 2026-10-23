@@ -4,7 +4,7 @@
 import { assertValidScore, type NewsItem, type Rating, type Summary } from "../../domain/types.ts";
 import type { MemoryStore } from "../../ports/memory-store.ts";
 import type { NewsSource } from "../../ports/news-source.ts";
-import type { Output, ReportEntry } from "../../ports/output.ts";
+import type { Output, ReportEntry, RunReport } from "../../ports/output.ts";
 import type { RatingModel } from "../../ports/rating-model.ts";
 
 export class StubNewsSource implements NewsSource {
@@ -50,15 +50,17 @@ export class StubRatingModel implements RatingModel {
   }
 }
 
-/** Keeps rendered entries in memory and prints a one-line overview. */
+/** Keeps the rendered report in memory and prints a short overview. */
 export class ConsoleOutput implements Output {
   entries: ReportEntry[] = [];
+  report: RunReport | undefined;
   constructor(private readonly quiet = false) {}
-  async render(entries: ReportEntry[]): Promise<void> {
-    this.entries = entries;
+  async render(report: RunReport): Promise<void> {
+    this.report = report;
+    this.entries = report.entries;
     if (this.quiet) return;
-    console.log(`Draft with ${entries.length} item(s):`);
-    for (const e of entries) console.log(`- [${e.rating.score}] ${e.item.title} <${e.item.url}>`);
+    console.log(`Draft with ${report.entries.length} item(s):`);
+    for (const e of report.entries) console.log(`- [${e.rating.score}] ${e.item.title} <${e.item.url}>`);
   }
 }
 

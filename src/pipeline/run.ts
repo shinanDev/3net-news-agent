@@ -6,7 +6,7 @@ import { join } from "node:path";
 import type { NewsItem, Rating, RunLog, StageLog, StageName } from "../domain/types.ts";
 import type { MemoryStore } from "../ports/memory-store.ts";
 import type { NewsSource } from "../ports/news-source.ts";
-import type { Output, ReportEntry } from "../ports/output.ts";
+import type { FailedRating, Output, RatedItem, ReportEntry, RunReport } from "../ports/output.ts";
 import type { RatingModel } from "../ports/rating-model.ts";
 import { prefilter, type FilterRule } from "./prefilter.ts";
 
@@ -67,7 +67,13 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
     return result;
   }
 
+  // Collected along the stages for the run report.
   let entries: ReportEntry[] = [];
+  let prefilterSummary: RunReport["prefilter"] = { input: 0, kept: 0, droppedByRule: {}, warnings: [] };
+  let alreadyReportedCount = 0;
+  let belowThreshold: RatedItem[] = [];
+  const failedRatings: FailedRating[] = [];
+  const byScore = (a: RatedItem, b: RatedItem) => b.rating.score - a.rating.score;
   try {
     const fetched = await stage("ingest", 0, async () => {
       const items = await deps.source.fetch();
@@ -80,6 +86,7 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
         ...(options.maxItems !== undefined && { maxItems: options.maxItems }),
       });
       warnings.forEach(warn);
+      prefilterSummary = { input: fetched.length, kept: kept.length, droppedByRule, warnings };
       return { result: kept, outputCount: kept.length, details: { droppedByRule, warnings, decisions } };
     });
 
@@ -90,6 +97,7 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
         if (await deps.memory.wasReported(item)) alreadyReported.push(item.id);
         else kept.push(item);
       }
+      alreadyReportedCount = alreadyReported.length;
       return { result: kept, outputCount: kept.length, details: { alreadyReported } };
     });
 
@@ -111,9 +119,15 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
             ...(e.callDurationsMs !== undefined && { callDurationsMs: e.callDurationsMs }),
           });
           warn(`${item.id}: ${e.message ?? String(err)}`);
+          failedRatings.push({
+            item,
+            error: e.message ?? String(err),
+            ...(e.attempts !== undefined && { attempts: e.attempts }),
+          });
         }
       }
-      const above = pairs.filter((p) => p.rating.score >= scoreThreshold);
+      const above = pairs.filter((p) => p.rating.score >= scoreThreshold).sort(byScore);
+      belowThreshold = pairs.filter((p) => p.rating.score < scoreThreshold).sort(byScore);
       return {
         result: above,
         outputCount: above.length,
@@ -128,7 +142,18 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
     });
 
     await stage("output", entries.length, async () => {
-      await deps.output.render(entries);
+      await deps.output.render({
+        runId,
+        generatedAt: now().toISOString(),
+        source: deps.source.name,
+        scoreThreshold,
+        ratingModel: deps.model.model,
+        entries,
+        belowThreshold,
+        failed: failedRatings,
+        prefilter: prefilterSummary,
+        alreadyReported: alreadyReportedCount,
+      });
       // Mark as reported only after the draft was rendered.
       for (const e of entries) await deps.memory.markReported(e.item);
       return { result: undefined, outputCount: entries.length, details: { reported: entries.map((e) => e.item.id) } };
