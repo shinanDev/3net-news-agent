@@ -1,6 +1,6 @@
 # 3NET News Agent
 
-<!-- Logo: assets/3net-logo.png (image added later) -->
+<img src="assets/3net-logo.png" alt="3NET logo" width="200">
 
 A weekly news agent that reads the public Microsoft 365 Roadmap, drops what is irrelevant with transparent rules, scores the rest with NVIDIA Nemotron, remembers what was already reported, and writes a report in which **every decision carries its reason**: the rule that dropped an item, the score components and reasoning behind a rating, the model that answered, and why an item counted as already reported.
 

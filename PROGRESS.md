@@ -45,7 +45,7 @@ Newest entries first. One entry per working day: what was done, what was decided
 - README: update the step table and repository layout to the current state.
 - DATEV ICS source with the maintenance window rule (neutral example).
 - Prove a run without sponsor components.
-- Logo: written approval from management and the file from an official internal source.
+- ~~Logo: written approval from management and the file from an official internal source.~~ Approved; added as `assets/3net-logo.png`.
 - Repository license.
 - Check the Rules channel for changes to 5.1/6.4; screenshot of the 22.10 announcement.
 - Sponsor tech and tools statement for the submission (rule 6.4).
