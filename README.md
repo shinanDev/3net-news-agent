@@ -62,7 +62,9 @@ Every decision in a run is recorded with its reason, in the run log (`data/runs/
 | Answering model | `nvidia/nemotron-3.5-super-vl-120b-a12b` (from the Meterless receipt, see [routing](#model-and-routing-transparency)) |
 | Receipt id | `rcpt_req_xrxfo8v2` (the receipt signature is stored in the run log only) |
 
-<!-- Screenshot of the HTML run report: assets/run-report.png (added later) -->
+<img src="assets/run-report.png" alt="HTML run report of demo run 2: item 573696 skipped as already reported via url, prefilter counts per rule" width="600">
+
+*HTML run report of the second [demo run](#demo-already-reported-across-two-runs) (2026-10-23): item 573696 was rated with score 8 in run 1 and is now skipped as already reported (`via url`, memory record `mem-1`); the prefilter table shows the drops per rule.*
 
 ## Architecture
 
