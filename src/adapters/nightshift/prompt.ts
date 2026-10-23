@@ -1,43 +1,13 @@
-// Relevance profile and prompt construction. Item text is untrusted data: it is JSON-encoded
-// between fixed markers, marker strings are removed from it, and the model is told to
-// ignore any instructions inside.
+// Prompt construction. Item text is untrusted data: it is JSON-encoded between fixed markers,
+// marker strings are removed from it, and the model is told to ignore any instructions inside.
 
-import { readFile } from "node:fs/promises";
+import type { RelevanceProfile } from "../../domain/profile.ts";
 import type { NewsItem } from "../../domain/types.ts";
 import type { ChatMessage } from "./nightshift-client.ts";
-
-export interface RelevanceProfile {
-  id: string;
-  audience: string;
-  coreProducts: string[];
-  notRelevant: string[];
-  baseValue: Record<"0" | "2" | "4" | "7", string>;
-  actionBonus: Record<"0" | "1" | "2" | "3", string>;
-  excluded: string;
-}
 
 export const ITEM_START = "<<<ITEM";
 export const ITEM_END = "ITEM>>>";
 export const MAX_SUMMARY_CHARS = 4000;
-
-export async function loadProfile(path: string): Promise<RelevanceProfile> {
-  const p = JSON.parse(await readFile(path, "utf8")) as Partial<RelevanceProfile>;
-  const isStrings = (v: unknown) => Array.isArray(v) && v.every((s) => typeof s === "string");
-  const hasKeys = (v: unknown, keys: string[]) =>
-    !!v && typeof v === "object" && keys.every((k) => typeof (v as Record<string, unknown>)[k] === "string");
-  if (
-    typeof p.id !== "string" ||
-    typeof p.audience !== "string" ||
-    !isStrings(p.coreProducts) ||
-    !isStrings(p.notRelevant) ||
-    !hasKeys(p.baseValue, ["0", "2", "4", "7"]) ||
-    !hasKeys(p.actionBonus, ["0", "1", "2", "3"]) ||
-    typeof p.excluded !== "string"
-  ) {
-    throw new Error(`relevance profile ${path} is incomplete or has wrong types`);
-  }
-  return p as RelevanceProfile;
-}
 
 export function systemPrompt(profile: RelevanceProfile, language: string, today: string): string {
   const list = (items: string[]) => items.map((s) => `- ${s}`).join("\n");

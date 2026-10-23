@@ -1,7 +1,9 @@
 // Rule-based pre-filter, no AI. Each rule has a stable id that ends up in the run log.
+// Product scope comes from the relevance profile, not from code.
 // Rules run in order; the first rule that drops an item decides its FilterDecision.
 // After the per-item rules, VF-LIMIT caps the number of items that go to the model.
 
+import { isOutOfScopeProduct, type OutOfScopeProducts } from "../domain/profile.ts";
 import type { FilterDecision, NewsItem } from "../domain/types.ts";
 
 export interface RuleResult {
@@ -45,13 +47,15 @@ export interface M365RuleOptions {
   /** VF-NEU window in days; null disables VF-NEU. */
   newDays: number | null;
   horizonMonths: number;
+  /** VF-PRODUCT: from the relevance profile. */
+  outOfScopeProducts: OutOfScopeProducts;
 }
 
 const LIVE_STATUSES = new Set(["Launched", "Rolling out"]);
 const KNOWN_STATUSES = new Set(["Launched", "Rolling out", "In development", "Cancelled"]);
 
-/** M365 Roadmap rules in order VF-NEU, VF-CLOUD, VF-STATUS, VF-HORIZONT. Items without m365 pass. */
-export function m365Rules({ now, newDays, horizonMonths }: M365RuleOptions): FilterRule[] {
+/** M365 Roadmap rules in order VF-NEU, VF-CLOUD, VF-STATUS, VF-PRODUCT, VF-HORIZONT. Items without m365 pass. */
+export function m365Rules({ now, newDays, horizonMonths, outOfScopeProducts }: M365RuleOptions): FilterRule[] {
   const rules: FilterRule[] = [];
 
   if (newDays !== null) {
@@ -83,6 +87,16 @@ export function m365Rules({ now, newDays, horizonMonths }: M365RuleOptions): Fil
   rules.push({
     id: "VF-STATUS",
     check: (item) => (item.m365 && item.status === "Cancelled" ? { kept: false, reason: "status Cancelled" } : null),
+  });
+
+  // Drops only if every product is out of scope; mixed items (e.g. Copilot + Dynamics 365) go to the model.
+  rules.push({
+    id: "VF-PRODUCT",
+    check: (item) => {
+      const products = item.m365?.products ?? [];
+      if (products.length === 0 || !products.every((p) => isOutOfScopeProduct(p, outOfScopeProducts))) return null;
+      return { kept: false, reason: `all products out of scope: ${products.join(", ")}` };
+    },
   });
 
   const runMonth = monthIndex(now);

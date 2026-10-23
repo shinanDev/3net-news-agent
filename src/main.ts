@@ -10,7 +10,7 @@ import {
 } from "./adapters/stub/stubs.ts";
 import { NightshiftClient } from "./adapters/nightshift/nightshift-client.ts";
 import { NightshiftRatingModel } from "./adapters/nightshift/nightshift-rating-model.ts";
-import { loadProfile } from "./adapters/nightshift/prompt.ts";
+import { loadProfile, type RelevanceProfile } from "./domain/profile.ts";
 import { ZetarisClient } from "./adapters/zetaris/zetaris-client.ts";
 import { ZetarisNewsSource } from "./adapters/zetaris/zetaris-news-source.ts";
 import {
@@ -46,7 +46,7 @@ function createSource(): NewsSource {
   return new ZetarisNewsSource(client, { rowLimit: intEnv("ZETARIS_ROW_LIMIT", DEFAULT_ZETARIS_ROW_LIMIT) });
 }
 
-async function createModel(): Promise<RatingModel> {
+function createModel(profile: RelevanceProfile): RatingModel {
   if (raterKind() === "stub") return new StubRatingModel();
   const client = new NightshiftClient({
     baseUrl: requireEnv("METERLESS_BASE_URL"),
@@ -57,20 +57,23 @@ async function createModel(): Promise<RatingModel> {
     timeoutMs: intEnv("NIGHTSHIFT_TIMEOUT_MS", DEFAULT_NIGHTSHIFT_TIMEOUT_MS),
   });
   return new NightshiftRatingModel(client, {
-    profile: await loadProfile(stringEnv("RATING_PROFILE", DEFAULT_RATING_PROFILE)),
+    profile,
     language: stringEnv("RATING_LANGUAGE", DEFAULT_RATING_LANGUAGE),
     strictModel: boolEnv("RATING_STRICT_MODEL", true),
   });
 }
 
+// The profile is needed by the prefilter (VF-PRODUCT) and by the rating model.
+const profile = await loadProfile(stringEnv("RATING_PROFILE", DEFAULT_RATING_PROFILE));
 const source = createSource();
-const model = await createModel();
+const model = createModel(profile);
 const rules = [
   requiredFields,
   ...m365Rules({
     now: new Date(),
     newDays: intEnv("PREFILTER_NEW_DAYS", DEFAULT_PREFILTER_NEW_DAYS),
     horizonMonths: intEnv("PREFILTER_HORIZON_MONTHS", DEFAULT_PREFILTER_HORIZON_MONTHS),
+    outOfScopeProducts: profile.outOfScopeProducts,
   }),
 ];
 const maxItems = optionalIntEnv("RATE_MAX_ITEMS");

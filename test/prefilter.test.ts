@@ -34,8 +34,16 @@ function item(id: string, status: string, m365: Partial<M365Details> | null = {}
   };
 }
 
+const OUT_OF_SCOPE = {
+  prefixes: ["Dynamics 365", "Power "],
+  exact: ["Microsoft Dataverse", "Microsoft Power Platform governance and administration", "Microsoft Copilot Studio"],
+};
+
 function run(items: NewsItem[], opts: Partial<M365RuleOptions> = {}, maxItems?: number) {
-  const rules = [requiredFields, ...m365Rules({ now: NOW, newDays: 8, horizonMonths: 3, ...opts })];
+  const rules = [
+    requiredFields,
+    ...m365Rules({ now: NOW, newDays: 8, horizonMonths: 3, outOfScopeProducts: OUT_OF_SCOPE, ...opts }),
+  ];
   return prefilter(items, { rules, ...(maxItems !== undefined && { maxItems }) });
 }
 
@@ -117,7 +125,50 @@ test("first dropping rule decides and drops are counted per rule", () => {
     item("c", "Launched"),
   ]);
   assert.equal(decision(r, "a").ruleId, "VF-CLOUD");
-  assert.deepEqual(r.droppedByRule, { "required-fields": 0, "VF-NEU": 0, "VF-CLOUD": 1, "VF-STATUS": 1, "VF-HORIZONT": 0 });
+  assert.deepEqual(r.droppedByRule, {
+    "required-fields": 0,
+    "VF-NEU": 0,
+    "VF-CLOUD": 1,
+    "VF-STATUS": 1,
+    "VF-PRODUCT": 0,
+    "VF-HORIZONT": 0,
+  });
+});
+
+test("VF-PRODUCT drops items whose products are all out of scope", () => {
+  const r = run([
+    item("prefix", "Launched", { products: ["Power Automate", "Dynamics 365 Sales"] }),
+    item("exact", "Launched", { products: ["Microsoft Dataverse", "Microsoft Copilot Studio"] }),
+    item("mixed", "Launched", { products: ["Microsoft Copilot (Microsoft 365)", "Dynamics 365 Sales"] }),
+    item("ppt", "Launched", { products: ["PowerPoint"] }),
+    item("empty", "Launched", { products: [] }),
+    item("case", "Launched", { products: ["power automate"] }),
+  ]);
+  assert.deepEqual(decision(r, "prefix"), {
+    itemId: "prefix",
+    kept: false,
+    ruleId: "VF-PRODUCT",
+    reason: "all products out of scope: Power Automate, Dynamics 365 Sales",
+  });
+  assert.equal(decision(r, "exact").ruleId, "VF-PRODUCT");
+  assert.equal(decision(r, "mixed").kept, true);
+  assert.equal(decision(r, "ppt").kept, true);
+  assert.equal(decision(r, "empty").kept, true);
+  assert.equal(decision(r, "case").kept, true, "matching is case-sensitive");
+  assert.equal(r.droppedByRule["VF-PRODUCT"], 2);
+});
+
+test("VF-PRODUCT runs after VF-STATUS and before VF-HORIZONT", () => {
+  const r = run([
+    item("cancelled", "Cancelled", { products: ["Power Apps"] }),
+    item("beyond", "In development", { products: ["Power Apps"], gaMonth: "2028-01" }),
+  ]);
+  assert.equal(decision(r, "cancelled").ruleId, "VF-STATUS");
+  assert.equal(decision(r, "beyond").ruleId, "VF-PRODUCT");
+});
+
+test("VF-PRODUCT leaves items without m365 details alone", () => {
+  assert.equal(decision(run([item("ics", "Event", null)]), "ics").kept, true);
 });
 
 test("VF-LIMIT keeps the most recently modified items and records the rest", () => {
@@ -147,14 +198,17 @@ test("fixture rows: decisions on the real sample", async () => {
   const body = JSON.parse(await readFile(new URL("./fixtures/zetaris-m365-sample.json", import.meta.url), "utf8")) as unknown;
   const items = toNewsItems(body, NOW.toISOString());
   const r = run(items, { now: new Date("2026-10-23T08:42:46.706Z") });
-  // 577827: modified 2026-10-22, Launched. 576761: modified 2026-10-16, GA 2026-10.
+  // 577827: Power Automate only. 576761: Dynamics 365 Customer Service only.
   // 560700: modified 2026-09-24, older than 8 days.
   assert.deepEqual(
     r.decisions.map((d) => [d.itemId, d.kept, d.ruleId]),
     [
-      ["m365:577827", true, "all"],
-      ["m365:576761", true, "all"],
+      ["m365:577827", false, "VF-PRODUCT"],
+      ["m365:576761", false, "VF-PRODUCT"],
       ["m365:560700", false, "VF-NEU"],
     ],
   );
+  // Without VF-NEU, 560700 (Teams + Copilot, GA 2026-11) passes.
+  const noWindow = run(items, { now: new Date("2026-10-23T08:42:46.706Z"), newDays: null });
+  assert.equal(noWindow.decisions[2]!.kept, true);
 });

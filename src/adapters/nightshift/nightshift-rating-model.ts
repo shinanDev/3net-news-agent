@@ -5,7 +5,8 @@ import type { NewsItem, Rating, Summary } from "../../domain/types.ts";
 import type { RatingModel } from "../../ports/rating-model.ts";
 import { StubRatingModel } from "../stub/stubs.ts";
 import { NightshiftError, type NightshiftClient } from "./nightshift-client.ts";
-import { buildMessages, type RelevanceProfile } from "./prompt.ts";
+import type { RelevanceProfile } from "../../domain/profile.ts";
+import { buildMessages } from "./prompt.ts";
 import { computeScore, parseAnswer } from "./rating-response.ts";
 
 export class RatingFailedError extends Error {

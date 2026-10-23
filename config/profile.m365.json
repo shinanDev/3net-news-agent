@@ -8,6 +8,14 @@
     "Compliance, eDiscovery, retention and audit",
     "IT operations, monitoring and reporting for administrators"
   ],
+  "outOfScopeProducts": {
+    "prefixes": ["Dynamics 365", "Power "],
+    "exact": [
+      "Microsoft Dataverse",
+      "Microsoft Power Platform governance and administration",
+      "Microsoft Copilot Studio"
+    ]
+  },
   "baseValue": {
     "0": "No relation to Microsoft 365 for this audience (e.g. Dynamics 365, Power Platform, developer or government-only topics).",
     "2": "Marginal relation to Microsoft 365.",
