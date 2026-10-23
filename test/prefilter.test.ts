@@ -167,6 +167,47 @@ test("VF-PRODUCT runs after VF-STATUS and before VF-HORIZONT", () => {
   assert.equal(decision(r, "beyond").ruleId, "VF-PRODUCT");
 });
 
+test("RATE_ITEM_IDS: only listed items pass, still through all rules, no VF-LIMIT", () => {
+  const items = [
+    item("m365:1", "Launched"),
+    item("m365:2", "Launched", { products: ["Power Apps"] }),
+    item("m365:3", "Launched"),
+    item("m365:4", "Launched"),
+  ];
+  const rules = [
+    requiredFields,
+    ...m365Rules({ now: NOW, newDays: 8, horizonMonths: 3, outOfScopeProducts: OUT_OF_SCOPE }),
+  ];
+  const r = prefilter(items, { rules, onlyIds: ["m365:4", "m365:2", "m365:1", "m365:999"], maxItems: 1 });
+
+  assert.deepEqual(r.kept.map((i) => i.id), ["m365:1", "m365:4"], "VF-LIMIT 1 is not applied");
+  assert.deepEqual(r.selected, [
+    { itemId: "m365:4", kept: true, ruleId: "all", reason: "passed all rules" },
+    { itemId: "m365:2", kept: false, ruleId: "VF-PRODUCT", reason: "all products out of scope: Power Apps" },
+    { itemId: "m365:1", kept: true, ruleId: "all", reason: "passed all rules" },
+    { itemId: "m365:999", kept: false, ruleId: "not-found", reason: "not in the source data" },
+  ]);
+  assert.deepEqual(r.decisions.find((d) => d.itemId === "m365:3"), {
+    itemId: "m365:3",
+    kept: false,
+    ruleId: "RATE_ITEM_IDS",
+    reason: "not listed",
+  });
+  assert.equal(r.droppedByRule["RATE_ITEM_IDS"], 1);
+  assert.equal(r.droppedByRule["VF-PRODUCT"], 1);
+  assert.ok(!("VF-LIMIT" in r.droppedByRule));
+  assert.deepEqual(r.warnings, [
+    "VF-LIMIT ignored because RATE_ITEM_IDS is set",
+    "m365:999: listed in RATE_ITEM_IDS but not in the source data",
+  ]);
+});
+
+test("without RATE_ITEM_IDS there is no selection in the result", () => {
+  const r = run([item("a", "Launched")]);
+  assert.equal(r.selected, undefined);
+  assert.ok(!("RATE_ITEM_IDS" in r.droppedByRule));
+});
+
 test("VF-PRODUCT leaves items without m365 details alone", () => {
   assert.equal(decision(run([item("ics", "Event", null)]), "ics").kept, true);
 });

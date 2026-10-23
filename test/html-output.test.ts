@@ -110,6 +110,26 @@ test("text from sources and the model is escaped, only http(s) URLs are linked",
   assert.equal(esc(`a&b<c>"d"'e'`), "a&amp;b&lt;c&gt;&quot;d&quot;&#39;e&#39;");
 });
 
+test("selected items section appears only with RATE_ITEM_IDS", () => {
+  assert.ok(!renderHtml(report()).includes("Selected items"));
+  const html = renderHtml(
+    report({
+      prefilter: {
+        input: 2,
+        kept: 1,
+        droppedByRule: { RATE_ITEM_IDS: 0, "VF-CLOUD": 1 },
+        warnings: [],
+        selected: [
+          { itemId: "m365:1", kept: true, ruleId: "all", reason: "passed all rules" },
+          { itemId: "m365:2", kept: false, ruleId: "VF-CLOUD", reason: "no Worldwide cloud (GCC)" },
+        ],
+      },
+    }),
+  );
+  assert.ok(html.includes("Selected items (RATE_ITEM_IDS)"));
+  assert.ok(html.includes("<tr><td>m365:2</td><td>dropped</td><td>VF-CLOUD</td><td>no Worldwide cloud (GCC)</td></tr>"));
+});
+
 test("answering model falls back to response model, then configured model", () => {
   assert.equal(answeringModel(rating("a", 1)), "vendor/routed-model");
   assert.equal(answeringModel(rating("a", 1, "x", { ...META, routedModel: null })), "vendor/response-model");

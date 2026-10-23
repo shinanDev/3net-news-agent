@@ -1,4 +1,4 @@
-import type { NewsItem, Rating, Summary } from "../domain/types.ts";
+import type { FilterDecision, NewsItem, Rating, Summary } from "../domain/types.ts";
 
 export interface ReportEntry {
   item: NewsItem;
@@ -35,6 +35,8 @@ export interface RunReport {
     kept: number;
     droppedByRule: Record<string, number>;
     warnings: string[];
+    /** With RATE_ITEM_IDS: the prefilter decision for each listed item. */
+    selected?: FilterDecision[];
   };
   alreadyReported: number;
 }

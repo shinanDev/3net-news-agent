@@ -93,6 +93,20 @@ ${Object.entries(r.prefilter.droppedByRule)
 <tr><td>Already reported</td><td>${r.alreadyReported}</td></tr>
 <tr><td>Sent to model</td><td>${sentToModel}</td></tr>
 </table>
+${
+  r.prefilter.selected
+    ? `<h3>Selected items (RATE_ITEM_IDS)</h3>
+<table>
+<tr><th>Item</th><th>Result</th><th>Rule</th><th>Reason</th></tr>
+${r.prefilter.selected
+  .map(
+    (d) =>
+      `<tr><td>${esc(d.itemId)}</td><td>${d.kept ? "passed" : "dropped"}</td><td>${esc(d.ruleId)}</td><td>${esc(d.reason)}</td></tr>`,
+  )
+  .join("\n")}
+</table>`
+    : ""
+}
 ${r.prefilter.warnings.length ? `<p>Warnings:</p>\n<ul>\n${r.prefilter.warnings.map((w) => `<li>${esc(w)}</li>`).join("\n")}\n</ul>` : ""}
 </body>
 </html>

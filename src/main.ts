@@ -23,6 +23,7 @@ import {
   DEFAULT_RATING_LANGUAGE,
   DEFAULT_RATING_PROFILE,
   DEFAULT_ZETARIS_ROW_LIMIT,
+  idListEnv,
   intEnv,
   loadEnv,
   optionalIntEnv,
@@ -80,6 +81,7 @@ const rules = [
   }),
 ];
 const maxItems = optionalIntEnv("RATE_MAX_ITEMS");
+const onlyIds = idListEnv("RATE_ITEM_IDS")?.map((id) => `m365:${id}`);
 const output = outputKind() === "html" ? new HtmlFileOutput() : new ConsoleOutput();
 const { log, logPath } = await runPipeline(
   {
@@ -88,7 +90,7 @@ const { log, logPath } = await runPipeline(
     model,
     output,
   },
-  { rules, ...(maxItems !== undefined && { maxItems }) },
+  { rules, ...(maxItems !== undefined && { maxItems }), ...(onlyIds && { onlyIds }) },
 );
 
 for (const s of log.stages) console.log(`${s.stage.padEnd(10)} ${s.inputCount} -> ${s.outputCount}`);

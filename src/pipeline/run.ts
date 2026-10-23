@@ -23,6 +23,8 @@ export interface RunOptions {
   rules?: FilterRule[];
   /** VF-LIMIT: at most this many items go to the model. Default: unlimited. */
   maxItems?: number;
+  /** RATE_ITEM_IDS: only these item ids go to the model; VF-LIMIT does not apply. */
+  onlyIds?: string[];
   warn?: (message: string) => void;
   /** Directory for run logs. Default: data/runs */
   runsDir?: string;
@@ -81,13 +83,21 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
     });
 
     const filtered = await stage("prefilter", fetched.length, async () => {
-      const { kept, decisions, droppedByRule, warnings } = prefilter(fetched, {
+      const { kept, decisions, droppedByRule, warnings, selected } = prefilter(fetched, {
         ...(options.rules && { rules: options.rules }),
         ...(options.maxItems !== undefined && { maxItems: options.maxItems }),
+        ...(options.onlyIds && { onlyIds: options.onlyIds }),
       });
       warnings.forEach(warn);
-      prefilterSummary = { input: fetched.length, kept: kept.length, droppedByRule, warnings };
-      return { result: kept, outputCount: kept.length, details: { droppedByRule, warnings, decisions } };
+      for (const d of selected ?? []) {
+        if (!d.kept && d.ruleId !== "not-found") warn(`${d.itemId}: selected but dropped by ${d.ruleId} (${d.reason})`);
+      }
+      prefilterSummary = { input: fetched.length, kept: kept.length, droppedByRule, warnings, ...(selected && { selected }) };
+      return {
+        result: kept,
+        outputCount: kept.length,
+        details: { droppedByRule, warnings, ...(selected && { selected }), decisions },
+      };
     });
 
     const fresh = await stage("memory", filtered.length, async () => {

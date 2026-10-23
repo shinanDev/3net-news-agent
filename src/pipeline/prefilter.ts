@@ -1,7 +1,8 @@
 // Rule-based pre-filter, no AI. Each rule has a stable id that ends up in the run log.
 // Product scope comes from the relevance profile, not from code.
 // Rules run in order; the first rule that drops an item decides its FilterDecision.
-// After the per-item rules, VF-LIMIT caps the number of items that go to the model.
+// After the per-item rules, VF-LIMIT caps the number of items that go to the model,
+// unless a selection (RATE_ITEM_IDS) is set: then only the listed items can pass.
 
 import { isOutOfScopeProduct, type OutOfScopeProducts } from "../domain/profile.ts";
 import type { FilterDecision, NewsItem } from "../domain/types.ts";
@@ -25,6 +26,11 @@ export interface PrefilterOptions {
   rules?: FilterRule[];
   /** VF-LIMIT: keep at most this many items, most recently modified first. Default: unlimited. */
   maxItems?: number;
+  /**
+   * RATE_ITEM_IDS: only these item ids can pass. Listed items still go through all rules;
+   * VF-LIMIT does not apply.
+   */
+  onlyIds?: string[];
 }
 
 export interface PrefilterResult {
@@ -32,7 +38,11 @@ export interface PrefilterResult {
   decisions: FilterDecision[];
   droppedByRule: Record<string, number>;
   warnings: string[];
+  /** With onlyIds: the decision for each listed id, in list order (also for ids not in the source). */
+  selected?: FilterDecision[];
 }
+
+export const SELECTION_RULE_ID = "RATE_ITEM_IDS";
 
 export const requiredFields: FilterRule = {
   id: "required-fields",
@@ -129,8 +139,15 @@ export function prefilter(items: NewsItem[], options: PrefilterOptions = {}): Pr
   const droppedByRule: Record<string, number> = Object.fromEntries(rules.map((r) => [r.id, 0]));
   const decisions = new Map<string, FilterDecision>();
   let kept: NewsItem[] = [];
+  const only = options.onlyIds ? new Set(options.onlyIds) : undefined;
+  if (only) droppedByRule[SELECTION_RULE_ID] = 0;
 
   for (const item of items) {
+    if (only && !only.has(item.id)) {
+      droppedByRule[SELECTION_RULE_ID]! += 1;
+      decisions.set(item.id, { itemId: item.id, kept: false, ruleId: SELECTION_RULE_ID, reason: "not listed" });
+      continue;
+    }
     const notes: string[] = [];
     let dropped: FilterDecision | undefined;
     for (const rule of rules) {
@@ -150,6 +167,17 @@ export function prefilter(items: NewsItem[], options: PrefilterOptions = {}): Pr
       const reason = ["passed all rules", ...notes].join("; ");
       decisions.set(item.id, { itemId: item.id, kept: true, ruleId: "all", reason });
     }
+  }
+
+  if (only) {
+    if (options.maxItems !== undefined) warnings.push(`VF-LIMIT ignored because ${SELECTION_RULE_ID} is set`);
+    const selected = options.onlyIds!.map(
+      (id) => decisions.get(id) ?? { itemId: id, kept: false, ruleId: "not-found", reason: "not in the source data" },
+    );
+    for (const d of selected) {
+      if (d.ruleId === "not-found") warnings.push(`${d.itemId}: listed in ${SELECTION_RULE_ID} but not in the source data`);
+    }
+    return { kept, decisions: items.map((i) => decisions.get(i.id)!), droppedByRule, warnings, selected };
   }
 
   if (options.maxItems !== undefined) {

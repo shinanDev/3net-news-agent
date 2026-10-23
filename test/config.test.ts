@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { boolEnv, intEnv, optionalIntEnv, sourceKind } from "../src/config.ts";
+import { boolEnv, idListEnv, intEnv, optionalIntEnv, sourceKind } from "../src/config.ts";
 
 const NAMES = ["TEST_INT", "SOURCE"];
 const saved = Object.fromEntries(NAMES.map((n) => [n, process.env[n]]));
@@ -42,6 +42,17 @@ test("boolean values: empty falls back, true/false parsed, others rejected", () 
   assert.equal(boolEnv("TEST_INT", false), true);
   process.env["TEST_INT"] = "yes";
   assert.throws(() => boolEnv("TEST_INT", true), /TEST_INT must be "true" or "false"/);
+});
+
+test("id lists: empty is unset, ids are trimmed and deduplicated, others rejected", () => {
+  process.env["TEST_INT"] = " ";
+  assert.equal(idListEnv("TEST_INT"), undefined);
+  process.env["TEST_INT"] = " 573696, 560700 ,573696,";
+  assert.deepEqual(idListEnv("TEST_INT"), ["573696", "560700"]);
+  for (const value of ["abc", "573696;560700", "m365:573696", ","]) {
+    process.env["TEST_INT"] = value;
+    assert.throws(() => idListEnv("TEST_INT"), /TEST_INT must be a comma-separated list of numeric ids/, value);
+  }
 });
 
 test("invalid values are rejected with the variable name only", () => {

@@ -72,6 +72,17 @@ export const DEFAULT_NIGHTSHIFT_TIMEOUT_MS = 120_000;
 export const DEFAULT_RATING_LANGUAGE = "en";
 export const DEFAULT_RATING_PROFILE = "config/profile.m365.json";
 
+/** Comma-separated numeric ids (e.g. RATE_ITEM_IDS=573696,560700); undefined when not set. */
+export function idListEnv(name: string): string[] | undefined {
+  const value = process.env[name]?.trim();
+  if (!value) return undefined;
+  const ids = value.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!ids.length || !ids.every((id) => /^\d+$/.test(id))) {
+    throw new Error(`environment variable ${name} must be a comma-separated list of numeric ids`);
+  }
+  return [...new Set(ids)];
+}
+
 /** Like intEnv, but returns undefined when the variable is not set. */
 export function optionalIntEnv(name: string): number | undefined {
   return process.env[name]?.trim() ? intEnv(name, 0) : undefined;
