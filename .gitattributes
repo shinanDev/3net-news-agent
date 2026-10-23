@@ -1,1 +1,3 @@
 * text=auto eol=lf
+# Vendored third-party code is stored byte for byte as downloaded (no line-ending normalization).
+vendor/hmem/** -text

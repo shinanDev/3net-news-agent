@@ -10,7 +10,8 @@
   "scripts": {
     "run": "tsx src/main.ts",
     "test": "tsx --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p vendor/hmem/tsconfig.json",
+    "conformance": "tsx scripts/conformance.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -42,6 +42,7 @@ Language: TypeScript (Node.js LTS).
 ```
 .claude/settings.json     Claude Code permissions (denies reading .env)
 zetaris/m365_roadmap.sql  Zetaris REST table and queries for the Microsoft 365 Roadmap
+vendor/hmem/              Vendored H-MEM reference implementation (third-party, Apache-2.0, unchanged)
 README.md                 This file
 PROGRESS.md               Daily progress log
 ```
@@ -65,7 +66,7 @@ Steps:
 No project code was written or committed before the build window opened on 22 October 2026.
 
 - The Zetaris REST table follows the pattern of the recipes in [zetaris/getting-started](https://github.com/zetaris/getting-started) (Apache-2.0).
-- The H-MEM implementation will be based on the reference in [Meterless/Meterless](https://github.com/Meterless/Meterless) (Apache-2.0). (planned)
+- **H-MEM reference implementation** (vendored, unchanged) in [`vendor/hmem/`](vendor/hmem/README.md): from [Meterless/Meterless](https://github.com/Meterless/Meterless), path `engines/hmem/reference`, commit `1742dec56a66e58eef9dda2d2b865823758ca8cd` (latest on `main` when downloaded), downloaded 2026-10-23 via degit, version 0.1.0, Apache-2.0. Copied with its license, spec (`AGENTS.md`) and conformance suite; `npm run conformance` checks it. Our adapter around it is in `src/adapters/hmem/`. (adapter planned)
 - A small labelled test set of real news items for calibrating the relevance scores will be declared here once added. (planned)
 
 ## Sponsor technology and AI tools
