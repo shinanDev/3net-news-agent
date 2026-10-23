@@ -20,6 +20,7 @@ Newest entries first. One entry per working day: what was done, what was decided
 - Live two-run demo recorded: run 1 rated 573696 (score 8, answering model `nvidia/nemotron-3-ultra-550b-a55b`, receipt `rcpt_req_jk2wk5mu`) and remembered it; run 2 skipped it as already reported (`via url`, record `mem-1`) without calling the model.
 - README rewritten for the jury: pitch and impact, "explain why" with a real rating example, architecture diagram, pipeline status, prefilter and scoring, model routing, H-MEM with proof, sponsor technology, quick start, testing, security, limitations. 3NET logo and a screenshot of the run report added under `assets/`.
 - DATEV maintenance windows: update dates from a local ICS file (`DATEV_MAINTENANCE_ICS_PATH`, kept under `data/`, not in the repository), tolerant parser without a new dependency, window rule computed in code (no model, no network). The run report lists upcoming windows with the update, the window and the rule ("why this window"). Checked: update on 2026-04-16 gives the window Sunday 2026-04-19 19:00 to Monday 2026-04-20 07:00. Tests use a synthetic ICS fixture; the real file read 13 events and 3 upcoming windows (400-day look-ahead).
+- README "Why it matters" sharpened: 3NET as DATEV solution partner (linked to the DATEV consulting page on 3net.de), the manual reading effort as the problem, human review of the explained selection, and the pipeline growing by source adapters and relevance profiles.
 
 **Decided**
 - `RATING_STRICT_MODEL=false` for development; the answering model is logged per rating.
@@ -53,7 +54,7 @@ Newest entries first. One entry per working day: what was done, what was decided
 - In the demo the reasoning for 573696 was word for word the same as in an earlier run, although another model answered; check whether Meterless serves cached answers.
 - ~~DATEV ICS source with the maintenance window rule (neutral example).~~ Done.
 - Maintenance windows, edge case: a release on a Sunday after the window has started (ICS dates are usually date-only, so the release time is unknown).
-- README "Why it matters": DATEV partner wording and link from 3net.de (Monday).
+- ~~README "Why it matters": DATEV partner wording and link from 3net.de (Monday).~~ Done.
 - Prove a run without sponsor components.
 - ~~Logo: written approval from management and the file from an official internal source.~~ Approved; added as `assets/3net-logo.png`.
 - Repository license.
