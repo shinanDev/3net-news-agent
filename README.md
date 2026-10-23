@@ -112,9 +112,9 @@ All stub adapters are the defaults, so `npm run run` without any configuration r
 
 ### Maintenance windows
 
-With `DATEV_MAINTENANCE_ICS_PATH` the agent also reads a calendar of software update dates (an ICS file kept locally under `data/`, not in the repository). For each update it computes the maintenance window with a configurable rule, no model and no network involved: by default the **first Sunday after the update date, 19:00 to Monday 07:00 (Europe/Berlin)**. Example: an update on Thursday 2026-04-16 gets the window Sunday 2026-04-19 19:00 to Monday 2026-04-20 07:00.
+With `DATEV_MAINTENANCE_ICS_PATH` the agent also reads a calendar of software update dates (an ICS file kept locally under `data/`, not in the repository). For each update it computes the maintenance window with a configurable rule, no model and no network involved: by default the **first Sunday on or after the update date, 19:00 to Monday 07:00 (Europe/Berlin)**. Example: an update on Thursday 2026-04-16 gets the window Sunday 2026-04-19 19:00 to Monday 2026-04-20 07:00.
 
-**Assumption to confirm:** an update released on a Sunday gets the following Sunday's window by default. With `DATEV_MAINTENANCE_SAME_DAY=true` it is installed the same Sunday evening instead.
+This follows our practice: an update released on a Sunday (for example at 18:00) is installed in that evening's window. `DATEV_MAINTENANCE_SAME_DAY=false` gives it the following Sunday's window instead. Open edge case: a release on a Sunday after the window has started; ICS dates are usually date-only, so the release time is not known and the same evening's window is used.
 
 The run report lists the windows within the next `DATEV_MAINTENANCE_LOOKAHEAD_DAYS` days (default 30), each with the update date, the update and the window, and states the rule as plain text ("why this window"). The parser is tolerant: malformed `DTSTAMP` values (seen in practice: seven digits in the time part) produce one warning and are ignored, events without a start date are skipped with a warning.
 
@@ -236,7 +236,7 @@ For live runs:
 | `DATEV_MAINTENANCE_END` | Local end time (next day if not after the start) | `07:00` |
 | `DATEV_MAINTENANCE_TZ` | Time zone of the window | `Europe/Berlin` |
 | `DATEV_MAINTENANCE_LOOKAHEAD_DAYS` | Show windows starting within this many days | `30` |
-| `DATEV_MAINTENANCE_SAME_DAY` | An update on the window weekday gets that day's window (`true`) or the next week's (`false`) | `false` |
+| `DATEV_MAINTENANCE_SAME_DAY` | An update on the window weekday gets that day's window (`true`) or the next week's (`false`) | `true` |
 
 Empty values count as not set.
 

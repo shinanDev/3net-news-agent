@@ -13,8 +13,9 @@ import { runPipeline } from "../src/pipeline/run.ts";
 
 // Synthetic fixture written for these tests (not a real vendor calendar).
 const FIXTURE = new URL("./fixtures/maintenance-sample.ics", import.meta.url);
-const RULE: MaintenanceRule = { weekday: "sunday", start: "19:00", end: "07:00", timeZone: "Europe/Berlin", sameDay: false };
-const SAME_DAY: MaintenanceRule = { ...RULE, sameDay: true };
+// Default rule as configured: a release on a Sunday is installed that evening.
+const RULE: MaintenanceRule = { weekday: "sunday", start: "19:00", end: "07:00", timeZone: "Europe/Berlin", sameDay: true };
+const NEXT_WEEK: MaintenanceRule = { ...RULE, sameDay: false };
 
 let dir: string;
 before(async () => {
@@ -66,20 +67,20 @@ test("update on Thursday 2026-04-16: window Sunday 19:00 to Monday 07:00", () =>
   });
 });
 
-test("default (same day off): update on a Saturday gets the next day, on a Sunday the following Sunday", () => {
+test("default (same day on): update on a Saturday gets the next day, on a Sunday the same evening", () => {
   assert.equal(computeWindow("2026-04-18", RULE).startLocal, "Sun 2026-04-19 19:00");
   assert.deepEqual(
     [computeWindow("2026-04-19", RULE).startLocal, computeWindow("2026-04-19", RULE).endLocal],
-    ["Sun 2026-04-26 19:00", "Mon 2026-04-27 07:00"],
+    ["Sun 2026-04-19 19:00", "Mon 2026-04-20 07:00"],
   );
   assert.equal(computeWindow("2026-04-20", RULE).startLocal, "Sun 2026-04-26 19:00");
 });
 
-test("same day on: an update on a Sunday is installed the same evening; other days unchanged", () => {
-  assert.equal(computeWindow("2026-04-19", SAME_DAY).startLocal, "Sun 2026-04-19 19:00");
-  assert.equal(computeWindow("2026-04-18", SAME_DAY).startLocal, "Sun 2026-04-19 19:00");
-  assert.equal(computeWindow("2026-04-16", SAME_DAY).startLocal, "Sun 2026-04-19 19:00");
-  assert.equal(computeWindow("2026-04-20", SAME_DAY).startLocal, "Sun 2026-04-26 19:00");
+test("same day off: an update on a Sunday gets the following Sunday; other days unchanged", () => {
+  assert.equal(computeWindow("2026-04-19", NEXT_WEEK).startLocal, "Sun 2026-04-26 19:00");
+  assert.equal(computeWindow("2026-04-18", NEXT_WEEK).startLocal, "Sun 2026-04-19 19:00");
+  assert.equal(computeWindow("2026-04-16", NEXT_WEEK).startLocal, "Sun 2026-04-19 19:00");
+  assert.equal(computeWindow("2026-04-20", NEXT_WEEK).startLocal, "Sun 2026-04-26 19:00");
 });
 
 test("year change and daylight saving time end", () => {
@@ -100,11 +101,11 @@ test("other weekday and times from the configuration", () => {
   );
   assert.equal(
     ruleText(RULE),
-    "first Sunday after the update date, 19:00 to Monday 07:00 (Europe/Berlin); an update on a Sunday gets the following Sunday's window",
+    "first Sunday on or after the update date, 19:00 to Monday 07:00 (Europe/Berlin); an update on a Sunday is installed the same evening",
   );
   assert.equal(
-    ruleText(SAME_DAY),
-    "first Sunday on or after the update date, 19:00 to Monday 07:00 (Europe/Berlin); an update on a Sunday is installed the same evening",
+    ruleText(NEXT_WEEK),
+    "first Sunday after the update date, 19:00 to Monday 07:00 (Europe/Berlin); an update on a Sunday gets the following Sunday's window",
   );
 });
 
@@ -132,13 +133,13 @@ async function runWithCalendar(now: string, lookaheadDays = 30) {
 
 test("report shows upcoming windows with update date, summary, window and the rule", async () => {
   const { html, log } = await runWithCalendar("2026-04-15T12:00:00.000Z", 12);
-  // Within 12 days of 2026-04-15: window 04-19 (updates of 04-16 and 04-18) and window 04-26
-  // (updates of 04-19, a Sunday, and of 04-21 and 04-22).
+  // Within 12 days of 2026-04-15: window 04-19 (updates of 04-16, 04-18 and 04-19, a Sunday)
+  // and window 04-26 (updates of 04-21 and 04-22).
   assert.ok(html.includes("Maintenance windows (next 12 days, 5)"));
-  assert.ok(html.includes("Why this window: first Sunday after the update date, 19:00 to Monday 07:00 (Europe/Berlin)"));
+  assert.ok(html.includes("Why this window: first Sunday on or after the update date, 19:00 to Monday 07:00 (Europe/Berlin)"));
   assert.ok(
     html.includes(
-      "<tr><td>2026-04-19</td><td>Software update C on a Sunday</td><td>Sun 2026-04-26 19:00 to Mon 2026-04-27 07:00</td></tr>",
+      "<tr><td>2026-04-19</td><td>Software update C on a Sunday</td><td>Sun 2026-04-19 19:00 to Mon 2026-04-20 07:00</td></tr>",
     ),
   );
   assert.ok(
@@ -151,8 +152,8 @@ test("report shows upcoming windows with update date, summary, window and the ru
   assert.ok(html.includes("Calendar warnings:"));
   const calendar = log.stages.find((s) => s.stage === "calendar")!;
   assert.equal(calendar.outputCount, 5);
-  // 10 days end before the second Sunday window starts: only the two updates of the 04-19 window.
-  assert.ok((await runWithCalendar("2026-04-15T12:00:00.000Z", 10)).html.includes("Maintenance windows (next 10 days, 2)"));
+  // 10 days end before the second Sunday window starts: only the three updates of the 04-19 window.
+  assert.ok((await runWithCalendar("2026-04-15T12:00:00.000Z", 10)).html.includes("Maintenance windows (next 10 days, 3)"));
 });
 
 test("nothing upcoming: the section says None", async () => {
@@ -194,11 +195,11 @@ test("configuration: off without a path, defaults, and invalid values rejected",
   process.env["DATEV_MAINTENANCE_ICS_PATH"] = "data/datev/calendar.ics";
   assert.deepEqual(maintenanceConfig(), {
     icsPath: "data/datev/calendar.ics",
-    rule: { weekday: "sunday", start: "19:00", end: "07:00", timeZone: "Europe/Berlin", sameDay: false },
+    rule: { weekday: "sunday", start: "19:00", end: "07:00", timeZone: "Europe/Berlin", sameDay: true },
     lookaheadDays: 30,
   });
-  process.env["DATEV_MAINTENANCE_SAME_DAY"] = "true";
-  assert.equal(maintenanceConfig()!.rule.sameDay, true);
+  process.env["DATEV_MAINTENANCE_SAME_DAY"] = "false";
+  assert.equal(maintenanceConfig()!.rule.sameDay, false);
   delete process.env["DATEV_MAINTENANCE_SAME_DAY"];
   for (const [name, value, error] of [
     ["DATEV_MAINTENANCE_WEEKDAY", "sonntag", /WEEKDAY must be one of/],

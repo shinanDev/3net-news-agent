@@ -105,7 +105,7 @@ export function maintenanceConfig():
   if (!isValidTimeZone(timeZone)) throw new Error(`environment variable DATEV_MAINTENANCE_TZ is not a known time zone`);
   return {
     icsPath,
-    rule: { weekday: weekday as Weekday, start, end, timeZone, sameDay: boolEnv("DATEV_MAINTENANCE_SAME_DAY", false) },
+    rule: { weekday: weekday as Weekday, start, end, timeZone, sameDay: boolEnv("DATEV_MAINTENANCE_SAME_DAY", true) },
     lookaheadDays: intEnv("DATEV_MAINTENANCE_LOOKAHEAD_DAYS", 30),
   };
 }

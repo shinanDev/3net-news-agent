@@ -60,7 +60,7 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `DATEV_MAINTENANCE_END` | local end time (next day if not after the start), default `07:00` |
 | `DATEV_MAINTENANCE_TZ` | time zone of the window, default `Europe/Berlin` |
 | `DATEV_MAINTENANCE_LOOKAHEAD_DAYS` | show windows starting within this many days, default `30` |
-| `DATEV_MAINTENANCE_SAME_DAY` | `true`: an update on the window weekday gets that day's window; default `false` (next week's; assumption to confirm) |
+| `DATEV_MAINTENANCE_SAME_DAY` | `true` (default): an update on the window weekday is installed in that day's window; `false`: the next week's |
 
 Keep `.env.example` in sync (names only, no values).
 
