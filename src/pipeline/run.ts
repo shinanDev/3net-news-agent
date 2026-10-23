@@ -41,6 +41,7 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
   const now = options.now ?? (() => new Date());
   const scoreThreshold = options.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD;
   const runsDir = options.runsDir ?? join("data", "runs");
+  const warn = options.warn ?? ((m: string) => console.warn(`warning: ${m}`));
   const startedAt = now().toISOString();
   // Windows does not allow ":" in file names.
   const runId = startedAt.replace(/[:.]/g, "-");
@@ -78,7 +79,6 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
         ...(options.rules && { rules: options.rules }),
         ...(options.maxItems !== undefined && { maxItems: options.maxItems }),
       });
-      const warn = options.warn ?? ((m: string) => console.warn(`warning: ${m}`));
       warnings.forEach(warn);
       return { result: kept, outputCount: kept.length, details: { droppedByRule, warnings, decisions } };
     });
@@ -94,13 +94,30 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
     });
 
     const rated = await stage("rate", fresh.length, async () => {
+      // A failed item gets no score, is not reported and not marked, so the next run retries it.
       const pairs: { item: NewsItem; rating: Rating }[] = [];
-      for (const item of fresh) pairs.push({ item, rating: await deps.model.rate(item) });
+      const failed: { itemId: string; error: string; attempts?: number; callDurationsMs?: number[] }[] = [];
+      for (const item of fresh) {
+        try {
+          const rating = await deps.model.rate(item);
+          rating.meta?.warnings.forEach((w) => warn(`${item.id}: ${w}`));
+          pairs.push({ item, rating });
+        } catch (err) {
+          const e = err as { message?: string; attempts?: number; callDurationsMs?: number[] };
+          failed.push({
+            itemId: item.id,
+            error: e.message ?? String(err),
+            ...(e.attempts !== undefined && { attempts: e.attempts }),
+            ...(e.callDurationsMs !== undefined && { callDurationsMs: e.callDurationsMs }),
+          });
+          warn(`${item.id}: ${e.message ?? String(err)}`);
+        }
+      }
       const above = pairs.filter((p) => p.rating.score >= scoreThreshold);
       return {
         result: above,
         outputCount: above.length,
-        details: { model: deps.model.model, ratings: pairs.map((p) => p.rating) },
+        details: { model: deps.model.model, ratings: pairs.map((p) => p.rating), failed },
       };
     });
 

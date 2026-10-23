@@ -1,6 +1,6 @@
 // Entry point. Wires the adapters and starts one pipeline run.
-// SOURCE=stub|zetaris selects the news source (default stub). Memory, model and output
-// are still placeholders; real ones (H-MEM, Nightshift) follow.
+// SOURCE=stub|zetaris selects the news source, RATER=stub|nightshift the rating model
+// (both default stub). Memory and output are still placeholders.
 
 import {
   ConsoleOutput,
@@ -8,18 +8,26 @@ import {
   StubNewsSource,
   StubRatingModel,
 } from "./adapters/stub/stubs.ts";
+import { NightshiftClient } from "./adapters/nightshift/nightshift-client.ts";
+import { NightshiftRatingModel } from "./adapters/nightshift/nightshift-rating-model.ts";
+import { loadProfile } from "./adapters/nightshift/prompt.ts";
 import { ZetarisClient } from "./adapters/zetaris/zetaris-client.ts";
 import { ZetarisNewsSource } from "./adapters/zetaris/zetaris-news-source.ts";
 import {
   DEFAULT_PREFILTER_HORIZON_MONTHS,
   DEFAULT_PREFILTER_NEW_DAYS,
+  DEFAULT_RATING_LANGUAGE,
+  DEFAULT_RATING_PROFILE,
   DEFAULT_ZETARIS_ROW_LIMIT,
   intEnv,
   loadEnv,
   optionalIntEnv,
+  raterKind,
   requireEnv,
   sourceKind,
+  stringEnv,
 } from "./config.ts";
+import type { RatingModel } from "./ports/rating-model.ts";
 import { m365Rules, requiredFields } from "./pipeline/prefilter.ts";
 import { runPipeline } from "./pipeline/run.ts";
 import type { NewsSource } from "./ports/news-source.ts";
@@ -36,7 +44,23 @@ function createSource(): NewsSource {
   return new ZetarisNewsSource(client, { rowLimit: intEnv("ZETARIS_ROW_LIMIT", DEFAULT_ZETARIS_ROW_LIMIT) });
 }
 
+async function createModel(): Promise<RatingModel> {
+  if (raterKind() === "stub") return new StubRatingModel();
+  const client = new NightshiftClient({
+    baseUrl: requireEnv("METERLESS_BASE_URL"),
+    token: requireEnv("METERLESS_RUNTIME_TOKEN"),
+    model: requireEnv("METERLESS_MODEL"),
+    app: requireEnv("METERLESS_APP"),
+    scope: requireEnv("METERLESS_SCOPE"),
+  });
+  return new NightshiftRatingModel(client, {
+    profile: await loadProfile(stringEnv("RATING_PROFILE", DEFAULT_RATING_PROFILE)),
+    language: stringEnv("RATING_LANGUAGE", DEFAULT_RATING_LANGUAGE),
+  });
+}
+
 const source = createSource();
+const model = await createModel();
 const rules = [
   requiredFields,
   ...m365Rules({
@@ -50,7 +74,7 @@ const { log, logPath } = await runPipeline(
   {
     source,
     memory: new InMemoryMemoryStore(),
-    model: new StubRatingModel(),
+    model,
     output: new ConsoleOutput(),
   },
   { rules, ...(maxItems !== undefined && { maxItems }) },

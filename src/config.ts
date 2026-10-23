@@ -35,6 +35,23 @@ export function sourceKind(): SourceKind {
   return value;
 }
 
+export type RaterKind = "stub" | "nightshift";
+
+export function raterKind(): RaterKind {
+  const value = process.env["RATER"]?.trim() || "stub";
+  if (value !== "stub" && value !== "nightshift") {
+    throw new Error(`environment variable RATER must be "stub" or "nightshift"`);
+  }
+  return value;
+}
+
+export function stringEnv(name: string, fallback: string): string {
+  return process.env[name]?.trim() || fallback;
+}
+
+export const DEFAULT_RATING_LANGUAGE = "en";
+export const DEFAULT_RATING_PROFILE = "config/profile.m365.json";
+
 /** Like intEnv, but returns undefined when the variable is not set. */
 export function optionalIntEnv(name: string): number | undefined {
   return process.env[name]?.trim() ? intEnv(name, 0) : undefined;

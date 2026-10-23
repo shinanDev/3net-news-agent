@@ -43,6 +43,28 @@ export interface Rating {
   sourceUrl: string;
   model: string;
   ratedAt: string;
+  /** What the model returned; the score is computed from these in code. */
+  components?: RatingComponents;
+  meta?: RatingMeta;
+}
+
+export interface RatingComponents {
+  baseValue: 0 | 2 | 4 | 7;
+  actionBonus: 0 | 1 | 2 | 3;
+  excluded: boolean;
+  products: string[];
+}
+
+export interface RatingMeta {
+  /** Total time for this item, including retries. */
+  durationMs: number;
+  /** Duration of each HTTP call in order. */
+  callDurationsMs: number[];
+  /** Content attempts (a second one after an invalid answer). */
+  attempts: number;
+  /** Model id reported in the response. */
+  responseModel: string | null;
+  warnings: string[];
 }
 
 export interface Summary {

@@ -43,6 +43,9 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `PREFILTER_NEW_DAYS` | VF-NEU: keep items modified within the last N days (rolling window), default `8` |
 | `PREFILTER_HORIZON_MONTHS` | VF-HORIZONT: keep not-yet-live items with GA up to M months ahead, default `3` |
 | `RATE_MAX_ITEMS` | VF-LIMIT: at most this many items go to the model (most recently modified first), default unlimited |
+| `RATER` | rating model: `stub` (default) or `nightshift` |
+| `RATING_LANGUAGE` | language of the rating reasoning, default `en` |
+| `RATING_PROFILE` | path to the relevance profile, default `config/profile.m365.json` |
 
 Keep `.env.example` in sync (names only, no values).
 

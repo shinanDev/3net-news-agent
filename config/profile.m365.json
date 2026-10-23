@@ -1,0 +1,24 @@
+{
+  "id": "m365-smb-end-users",
+  "audience": "End users and decision makers in small and medium-sized businesses that use Microsoft 365.",
+  "coreProducts": ["Copilot", "Teams", "SharePoint", "Outlook", "OneDrive", "Exchange Online"],
+  "notRelevant": [
+    "Admin-only features and settings",
+    "Configuration, deployment and tenant management",
+    "Compliance, eDiscovery, retention and audit",
+    "IT operations, monitoring and reporting for administrators"
+  ],
+  "baseValue": {
+    "0": "No relation to Microsoft 365 for this audience (e.g. Dynamics 365, Power Platform, developer or government-only topics).",
+    "2": "Marginal relation to Microsoft 365.",
+    "4": "Microsoft 365 topic, but no core product is the subject (e.g. Word, Excel, PowerPoint, Planner, Microsoft 365 in general).",
+    "7": "A core product is the subject of the item."
+  },
+  "actionBonus": {
+    "0": "Pure information.",
+    "1": "Concrete benefit for users (new feature they can use, practical tip) or a recommendation without a date.",
+    "2": "Action or preparation needed, with a date more than 7 days away.",
+    "3": "Acute: deadline within 7 days, or something stops working or is currently disrupted."
+  },
+  "excluded": "True if the item belongs to a 'not relevant' topic, even if it mentions a core product."
+}
