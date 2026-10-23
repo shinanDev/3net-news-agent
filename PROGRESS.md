@@ -16,9 +16,10 @@ Newest entries first. One entry per working day: what was done, what was decided
 - First item above the threshold: 573696 (SharePoint: Copilot Search in SharePoint and OneDrive), score 8.
 - H-MEM "already reported" done: reference vendored unchanged in `vendor/hmem/` (Meterless/Meterless, commit `1742dec`), exact URL first, then similarity with a strict threshold (0.999); conformance 13/13 and a two-run proof (the second run reports the item as already reported via URL).
 - Meterless (sponsor) confirmed in the HackOS 'Help Meterless' channel (2026-10-23, 14:12) that the vendored H-MEM reference in a working feature satisfies the engine requirement.
-- 71 tests green.
+- 83 tests green.
 - Live two-run demo recorded: run 1 rated 573696 (score 8, answering model `nvidia/nemotron-3-ultra-550b-a55b`, receipt `rcpt_req_jk2wk5mu`) and remembered it; run 2 skipped it as already reported (`via url`, record `mem-1`) without calling the model.
 - README rewritten for the jury: pitch and impact, "explain why" with a real rating example, architecture diagram, pipeline status, prefilter and scoring, model routing, H-MEM with proof, sponsor technology, quick start, testing, security, limitations. 3NET logo and a screenshot of the run report added under `assets/`.
+- DATEV maintenance windows: update dates from a local ICS file (`DATEV_MAINTENANCE_ICS_PATH`, kept under `data/`, not in the repository), tolerant parser without a new dependency, window rule computed in code (no model, no network). The run report lists upcoming windows with the update, the window and the rule ("why this window"). Checked: update on 2026-04-16 gives the window Sunday 2026-04-19 19:00 to Monday 2026-04-20 07:00. Tests use a synthetic ICS fixture; the real file read 13 events and 3 upcoming windows (400-day look-ahead).
 
 **Decided**
 - `RATING_STRICT_MODEL=false` for development; the answering model is logged per rating.
@@ -29,6 +30,9 @@ Newest entries first. One entry per working day: what was done, what was decided
 - VF-NEU window 8 days (overlap is handled by the memory check; gaps are worse).
 - `MEMORY_MARK` is off by default, so test runs do not block items.
 - Rating reasoning in English for the hackathon (`RATING_LANGUAGE=en`).
+- Maintenance window rule as our practice: first Sunday on or after the update date, 19:00 to Monday 07:00 (Europe/Berlin); a release on a Sunday is installed that evening (`DATEV_MAINTENANCE_SAME_DAY=true`, default). Weekday, times, time zone and look-ahead are configurable.
+- DATEV may be named in code and docs (3NET is a DATEV partner, public on the company website).
+- Commit authors are history metadata: a team member who builds a block may be named as its author with consent; the rule against personal data in code and docs is not affected.
 
 **Learned**
 - npm records approved dependency install scripts in the `allowScripts` field of `package.json`. Approving single packages pinned to their version keeps control over what runs during install (supply-chain security).
@@ -38,6 +42,7 @@ Newest entries first. One entry per working day: what was done, what was decided
 - The H-MEM reference embedder is a hash of words: identical titles are often different platform or cloud variants, and one-character words are ignored. Similarity therefore compares title, platforms and clouds, with a strict threshold.
 - The roadmap URL pattern `?id=<id>` was verified in the browser.
 - `created` is not the announcement date (many items share timestamps from bulk updates); VF-NEU therefore uses `modified`.
+- The DATEV update calendar has date-only start dates, and all 13 DTSTAMP values carry seven digits in the time part; the parser warns once and ignores DTSTAMP.
 
 **Open**
 - ~~Check that `npx tsx --version` runs.~~ Works.
@@ -46,7 +51,9 @@ Newest entries first. One entry per working day: what was done, what was decided
 - Real summaries (summarise is still a placeholder), newsletter output (HTML mail to a local SMTP catcher), test-set measurement with the rating date (round 2: 2026-10-19).
 - ~~README: update the step table and repository layout to the current state.~~ Done with the README rewrite.
 - In the demo the reasoning for 573696 was word for word the same as in an earlier run, although another model answered; check whether Meterless serves cached answers.
-- DATEV ICS source with the maintenance window rule (neutral example).
+- ~~DATEV ICS source with the maintenance window rule (neutral example).~~ Done.
+- Maintenance windows, edge case: a release on a Sunday after the window has started (ICS dates are usually date-only, so the release time is unknown).
+- README "Why it matters": DATEV partner wording and link from 3net.de (Monday).
 - Prove a run without sponsor components.
 - ~~Logo: written approval from management and the file from an official internal source.~~ Approved; added as `assets/3net-logo.png`.
 - Repository license.
