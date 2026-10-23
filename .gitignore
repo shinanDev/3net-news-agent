@@ -4,4 +4,6 @@
 .claude/settings.local.json
 .idea/
 __pycache__/
-.venv/no
+.venv/
+node_modules/
+data/

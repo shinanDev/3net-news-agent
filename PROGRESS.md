@@ -2,6 +2,21 @@
 
 Newest entries first. One entry per working day: what was done, what was decided, what is open.
 
+## 2026-10-23 (build day 2)
+
+**Done**
+- Node.js installed.
+- Dev dependencies installed: `typescript`, `tsx`, `@types/node` (see `package.json`).
+- npm reported that `esbuild@0.28.2` (needed by `tsx`) has a postinstall script not yet covered by `allowScripts`. Approved for exactly this version (`"esbuild@0.28.2": true` in `package.json`), not with `--all`.
+
+**Learned**
+- npm records approved dependency install scripts in the `allowScripts` field of `package.json`. Approving single packages pinned to their version keeps control over what runs during install (supply-chain security).
+
+**Open**
+- Check that `npx tsx --version` runs; if not, `npm rebuild esbuild`.
+- TypeScript scaffold (ports & adapters), M365 ingestion via Zetaris REST with JSON snapshot, H-MEM reference test, Nightshift model adapter, prefilter with rule IDs.
+- Decide where items and ratings are stored (Zetaris reads only).
+
 ## 2026-10-22 (build day 1)
 
 **Done**
@@ -21,7 +36,7 @@ Newest entries first. One entry per working day: what was done, what was decided
 - After a laptop restart the Zetaris `driver` container had exited (code 127); `docker compose up -d driver` fixed it.
 
 **Open**
-- Install Node.js LTS.
+- ~~Install Node.js LTS.~~ Done on 2026-10-23.
 - Ask Zetaris mentors about the view error.
 
 ## 2026-10-21 (setup before the build window, no project code)

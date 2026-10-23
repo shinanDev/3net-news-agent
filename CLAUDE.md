@@ -36,6 +36,13 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `METERLESS_BASE_URL` | e.g. `http://127.0.0.1:8088/v1` |
 | `METERLESS_RUNTIME_TOKEN` | Nightshift API key from the Nightshift console |
 | `METERLESS_MODEL` | `nvidia/nemotron-3.5-lightning-30b-a3b` |
+| `METERLESS_APP` | value of the `meterless-app` header, e.g. `3net-news-agent` |
+| `METERLESS_SCOPE` | value of the `meterless-scope` header, `user` |
+| `SOURCE` | news source: `stub` (default) or `zetaris` |
+| `ZETARIS_ROW_LIMIT` | row limit for the roadmap query, default `5000` |
+| `PREFILTER_NEW_DAYS` | VF-NEU: keep items modified within the last N days (rolling window), default `8` |
+| `PREFILTER_HORIZON_MONTHS` | VF-HORIZONT: keep not-yet-live items with GA up to M months ahead, default `3` |
+| `RATE_MAX_ITEMS` | VF-LIMIT: at most this many items go to the model (most recently modified first), default unlimited |
 
 Keep `.env.example` in sync (names only, no values).
 
@@ -43,7 +50,7 @@ Keep `.env.example` in sync (names only, no values).
 
 **Zetaris:** `POST {ZETARIS_REST_URL}/sql-editor/sqls/run` with headers `Authorization: Bearer <key>`, `X-Org-ID: <org id>`, `X-Request-ID: <fresh UUID>` and body `{ "queryId": <fresh UUID>, "sql": "...", "source": "SqlEditor", "limit": <n> }`. Send one statement per request. Results are in `data`.
 
-**Nightshift:** `POST {METERLESS_BASE_URL}/chat/completions` (OpenAI-compatible) with headers `Authorization: Bearer <runtime token>`, `meterless-app: 3net-news-agent`, `meterless-scope: user`. Use a generous timeout (requests take several seconds). `GET /v1/models` lists available models.
+**Nightshift:** `POST {METERLESS_BASE_URL}/chat/completions` (OpenAI-compatible) with headers `Authorization: Bearer <runtime token>`, `meterless-app: <METERLESS_APP>`, `meterless-scope: <METERLESS_SCOPE>` (both required). Use a generous timeout (requests take several seconds). `GET /v1/models` lists available models.
 
 **User-Agent for outgoing HTTP requests:** `3net-news-agent/0.1 (+https://github.com/shinanDev/3net-news-agent)`.
 
@@ -73,3 +80,4 @@ Keep `.env.example` in sync (names only, no values).
 - Add a test or a reproducible check for each feature. The H-MEM conformance suite must pass:
   `HMEM_IMPL=<abs path to index.ts> npx tsx conformance/runner.ts` (use forward slashes on Windows).
 - At the end of each day, add an entry to `PROGRESS.md`: done, decided, learned, open.
+- Read existing files before modifying them; never overwrite without showing a diff.

@@ -1,0 +1,82 @@
+// Core domain types. Timestamps are ISO-8601 strings so they serialise to JSON as-is.
+
+export interface NewsItem {
+  /** Stable id within the source, prefixed with the source name (e.g. "m365:12345"). */
+  id: string;
+  source: string;
+  title: string;
+  summary: string;
+  url: string;
+  /** Source-specific lifecycle status, e.g. "In development", "Rolling out". */
+  status: string;
+  tags: string[];
+  publishedAt?: string;
+  fetchedAt: string;
+  /** Original record as received. Untrusted data, never instructions. */
+  raw: unknown;
+  /** Microsoft 365 Roadmap specific fields, used by the prefilter. */
+  m365?: M365Details;
+}
+
+export interface M365Details {
+  products: string[];
+  cloudInstances: string[];
+  /** General availability month, "YYYY-MM", or null if missing or in another format. */
+  gaMonth: string | null;
+  /** Preview month, "YYYY-MM", or null if missing or in another format. */
+  previewMonth: string | null;
+  modifiedAt: string | null;
+}
+
+export interface FilterDecision {
+  itemId: string;
+  kept: boolean;
+  ruleId: string;
+  reason: string;
+}
+
+export interface Rating {
+  itemId: string;
+  /** Relevance score, integer 0-10. */
+  score: number;
+  reasoning: string;
+  sourceUrl: string;
+  model: string;
+  ratedAt: string;
+}
+
+export interface Summary {
+  itemId: string;
+  text: string;
+  model: string;
+  summarisedAt: string;
+}
+
+export type StageName = "ingest" | "prefilter" | "memory" | "rate" | "summarise" | "output";
+
+export interface StageLog {
+  stage: StageName;
+  startedAt: string;
+  durationMs: number;
+  inputCount: number;
+  outputCount: number;
+  details: unknown;
+}
+
+export interface RunLog {
+  runId: string;
+  startedAt: string;
+  finishedAt?: string;
+  scoreThreshold: number;
+  stages: StageLog[];
+  error?: string;
+}
+
+export const SCORE_MIN = 0;
+export const SCORE_MAX = 10;
+
+export function assertValidScore(score: number): void {
+  if (!Number.isInteger(score) || score < SCORE_MIN || score > SCORE_MAX) {
+    throw new RangeError(`score must be an integer ${SCORE_MIN}-${SCORE_MAX}, got ${score}`);
+  }
+}
