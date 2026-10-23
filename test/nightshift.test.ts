@@ -42,7 +42,7 @@ const ITEM: NewsItem = {
   tags: [],
   fetchedAt: NOW.toISOString(),
   raw: { secretish: "not for the model" },
-  m365: { products: ["Microsoft Teams"], cloudInstances: ["Worldwide"], gaMonth: "2026-11", previewMonth: null, modifiedAt: null },
+  m365: { products: ["Microsoft Teams"], platforms: ["Web"], cloudInstances: ["Worldwide"], gaMonth: "2026-11", previewMonth: null, modifiedAt: null },
 };
 
 const answer = (o: Record<string, unknown>) =>
@@ -282,13 +282,14 @@ test("pipeline: a failed rating is logged without score and not reported", async
   const warnings: string[] = [];
   const { log, entries } = await runPipeline(
     { source: new StubNewsSource(), memory, model: rater, output: new ConsoleOutput(true) },
-    { runsDir, warn: (m) => warnings.push(m) },
+    { runsDir, warn: (m) => warnings.push(m), markReported: true },
   );
   const rate = log.stages.find((s) => s.stage === "rate")!;
   const details = rate.details as { ratings: { itemId: string }[]; failed: { itemId: string; attempts: number }[] };
   assert.deepEqual(details.failed.map((f) => [f.itemId, f.attempts]), [["stub:1", 2]]);
   assert.deepEqual(details.ratings.map((r) => r.itemId), ["stub:2"]);
   assert.deepEqual(entries.map((e) => e.item.id), ["stub:2"]);
-  assert.equal(await memory.wasReported({ ...ITEM, url: "https://example.com/items/1" }), false);
+  assert.equal((await memory.wasReported({ ...ITEM, url: "https://example.com/items/1" })).reported, false);
+  assert.equal((await memory.wasReported({ ...ITEM, url: "https://example.com/items/2" })).reported, true);
   assert.match(warnings[0]!, /stub:1: rating failed: invalid answer twice/);
 });

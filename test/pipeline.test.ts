@@ -21,13 +21,24 @@ after(async () => {
   await rm(runsDir, { recursive: true, force: true });
 });
 
+test("without markReported nothing is remembered", async () => {
+  const memory = new InMemoryMemoryStore();
+  const { entries, log } = await runPipeline(
+    { source: new StubNewsSource(), memory, model: new StubRatingModel(), output: new ConsoleOutput(true) },
+    { runsDir },
+  );
+  assert.ok(entries.length > 0);
+  for (const e of entries) assert.equal((await memory.wasReported(e.item)).reported, false);
+  assert.deepEqual(log.stages.at(-1)!.details, { marked: false, reported: [] });
+});
+
 test("runs all stages with stubs and writes the run log", async () => {
   // Sample items: 1 and 2 are valid, 3 has no title. Item 1 was reported before; item 2 scores 7.
   const output = new ConsoleOutput(true);
   const memory = new InMemoryMemoryStore(["https://example.com/items/1"]);
   const { log, logPath, entries } = await runPipeline(
     { source: new StubNewsSource(), memory, model: new StubRatingModel({ "stub:2": 7 }), output },
-    { runsDir },
+    { runsDir, markReported: true },
   );
 
   assert.deepEqual(
@@ -43,7 +54,12 @@ test("runs all stages with stubs and writes the run log", async () => {
   );
   assert.deepEqual(entries.map((e) => e.item.id), ["stub:2"]);
   assert.equal(output.entries.length, 1);
-  assert.equal(await memory.wasReported(entries[0]!.item), true);
+  assert.deepEqual(await memory.wasReported(entries[0]!.item), {
+    reported: true,
+    via: "url",
+    matchId: "https://example.com/items/2",
+  });
+  assert.equal(output.report!.alreadyReported[0]!.finding.via, "url");
 
   const written = JSON.parse(await readFile(logPath, "utf8")) as RunLog;
   assert.equal(written.runId, log.runId);

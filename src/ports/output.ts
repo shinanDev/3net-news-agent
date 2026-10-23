@@ -1,4 +1,5 @@
 import type { FilterDecision, NewsItem, Rating, Summary } from "../domain/types.ts";
+import type { MemoryFinding } from "./memory-store.ts";
 
 export interface ReportEntry {
   item: NewsItem;
@@ -38,7 +39,8 @@ export interface RunReport {
     /** With RATE_ITEM_IDS: the prefilter decision for each listed item. */
     selected?: FilterDecision[];
   };
-  alreadyReported: number;
+  /** Items that passed the prefilter but were already reported in an earlier run, with the reason. */
+  alreadyReported: { item: NewsItem; finding: MemoryFinding }[];
 }
 
 export interface Output {

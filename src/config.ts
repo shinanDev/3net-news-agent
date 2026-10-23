@@ -59,6 +59,29 @@ export function outputKind(): OutputKind {
   return value;
 }
 
+export type MemoryKind = "none" | "hmem";
+
+export function memoryKind(): MemoryKind {
+  const value = process.env["MEMORY"]?.trim() || "none";
+  if (value !== "none" && value !== "hmem") {
+    throw new Error(`environment variable MEMORY must be "none" or "hmem"`);
+  }
+  return value;
+}
+
+/** A number in (0, 1]; empty or unset falls back to the default. */
+export function ratioEnv(name: string, fallback: number): number {
+  const value = process.env[name]?.trim();
+  if (!value) return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0 || n > 1) throw new Error(`environment variable ${name} must be a number in (0, 1]`);
+  return n;
+}
+
+export const DEFAULT_MEMORY_DIR = "data/memory/hmem";
+/** Calibrated on the 2026-10-23 snapshot: only identical normalized text counts as a duplicate. */
+export const DEFAULT_MEMORY_SIMILARITY_THRESHOLD = 0.999;
+
 /** "true"/"false" (case-insensitive); empty or unset falls back to the default. */
 export function boolEnv(name: string, fallback: boolean): boolean {
   const value = process.env[name]?.trim().toLowerCase();

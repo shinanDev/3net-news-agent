@@ -59,7 +59,7 @@ function report(overrides: Partial<RunReport> = {}): RunReport {
     belowThreshold: [],
     failed: [],
     prefilter: { input: 10, kept: 3, droppedByRule: { "VF-NEU": 5, "VF-PRODUCT": 2 }, warnings: [] },
-    alreadyReported: 0,
+    alreadyReported: [],
     ...overrides,
   };
 }

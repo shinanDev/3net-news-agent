@@ -2,7 +2,7 @@
 // All data here is fictional.
 
 import { assertValidScore, type NewsItem, type Rating, type Summary } from "../../domain/types.ts";
-import type { MemoryStore } from "../../ports/memory-store.ts";
+import type { MemoryFinding, MemoryStore } from "../../ports/memory-store.ts";
 import type { NewsSource } from "../../ports/news-source.ts";
 import type { Output, ReportEntry, RunReport } from "../../ports/output.ts";
 import type { RatingModel } from "../../ports/rating-model.ts";
@@ -21,8 +21,10 @@ export class InMemoryMemoryStore implements MemoryStore {
   constructor(reportedUrls: string[] = []) {
     reportedUrls.forEach((u) => this.urls.add(u));
   }
-  async wasReported(item: NewsItem): Promise<boolean> {
-    return this.urls.has(item.url);
+  async wasReported(item: NewsItem): Promise<MemoryFinding> {
+    return this.urls.has(item.url)
+      ? { reported: true, via: "url", matchId: item.url }
+      : { reported: false, via: null };
   }
   async markReported(item: NewsItem): Promise<void> {
     this.urls.add(item.url);

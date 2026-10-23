@@ -1,7 +1,8 @@
 // Entry point. Wires the adapters and starts one pipeline run.
 // SOURCE=stub|zetaris selects the news source, RATER=stub|nightshift the rating model
-// (both default stub), OUTPUT=html|console the run report (default html, data/out/).
-// Memory is still a placeholder.
+// (both default stub), OUTPUT=html|console the run report (default html, data/out/),
+// MEMORY=none|hmem the "already reported" store (default none). Items are only remembered
+// for later runs with MEMORY_MARK=true.
 
 import {
   ConsoleOutput,
@@ -9,6 +10,7 @@ import {
   StubNewsSource,
   StubRatingModel,
 } from "./adapters/stub/stubs.ts";
+import { HmemMemoryStore } from "./adapters/hmem/hmem-memory-store.ts";
 import { HtmlFileOutput } from "./adapters/html/html-file-output.ts";
 import { NightshiftClient } from "./adapters/nightshift/nightshift-client.ts";
 import { NightshiftRatingModel } from "./adapters/nightshift/nightshift-rating-model.ts";
@@ -17,6 +19,8 @@ import { ZetarisClient } from "./adapters/zetaris/zetaris-client.ts";
 import { ZetarisNewsSource } from "./adapters/zetaris/zetaris-news-source.ts";
 import {
   boolEnv,
+  DEFAULT_MEMORY_DIR,
+  DEFAULT_MEMORY_SIMILARITY_THRESHOLD,
   DEFAULT_NIGHTSHIFT_TIMEOUT_MS,
   DEFAULT_PREFILTER_HORIZON_MONTHS,
   DEFAULT_PREFILTER_NEW_DAYS,
@@ -26,9 +30,11 @@ import {
   idListEnv,
   intEnv,
   loadEnv,
+  memoryKind,
   optionalIntEnv,
   outputKind,
   raterKind,
+  ratioEnv,
   requireEnv,
   sourceKind,
   stringEnv,
@@ -83,14 +89,22 @@ const rules = [
 const maxItems = optionalIntEnv("RATE_MAX_ITEMS");
 const onlyIds = idListEnv("RATE_ITEM_IDS")?.map((id) => `m365:${id}`);
 const output = outputKind() === "html" ? new HtmlFileOutput() : new ConsoleOutput();
+const memory =
+  memoryKind() === "hmem"
+    ? await HmemMemoryStore.create({
+        dir: stringEnv("MEMORY_DIR", DEFAULT_MEMORY_DIR),
+        threshold: ratioEnv("MEMORY_SIMILARITY_THRESHOLD", DEFAULT_MEMORY_SIMILARITY_THRESHOLD),
+      })
+    : new InMemoryMemoryStore();
+const markReported = boolEnv("MEMORY_MARK", false);
 const { log, logPath } = await runPipeline(
   {
     source,
-    memory: new InMemoryMemoryStore(),
+    memory,
     model,
     output,
   },
-  { rules, ...(maxItems !== undefined && { maxItems }), ...(onlyIds && { onlyIds }) },
+  { rules, markReported, ...(maxItems !== undefined && { maxItems }), ...(onlyIds && { onlyIds }) },
 );
 
 for (const s of log.stages) console.log(`${s.stage.padEnd(10)} ${s.inputCount} -> ${s.outputCount}`);

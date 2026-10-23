@@ -50,6 +50,7 @@ export function toNewsItem(record: Record<string, unknown>, fetchedAt: string): 
     raw,
     m365: {
       products: strList(record["products"]),
+      platforms: strList(record["platforms"]),
       cloudInstances: strList(record["cloudInstances"]),
       gaMonth: month(record["generalAvailabilityDate"]),
       previewMonth: month(record["previewAvailabilityDate"]),

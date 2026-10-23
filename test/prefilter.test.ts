@@ -25,6 +25,7 @@ function item(id: string, status: string, m365: Partial<M365Details> | null = {}
     ...base,
     m365: {
       products: [],
+      platforms: [],
       cloudInstances: ["Worldwide (Standard Multi-Tenant)"],
       gaMonth: "2026-11",
       previewMonth: null,

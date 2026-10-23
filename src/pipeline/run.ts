@@ -4,7 +4,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { NewsItem, Rating, RunLog, StageLog, StageName } from "../domain/types.ts";
-import type { MemoryStore } from "../ports/memory-store.ts";
+import type { MemoryFinding, MemoryStore } from "../ports/memory-store.ts";
 import type { NewsSource } from "../ports/news-source.ts";
 import type { FailedRating, Output, RatedItem, ReportEntry, RunReport } from "../ports/output.ts";
 import type { RatingModel } from "../ports/rating-model.ts";
@@ -25,6 +25,8 @@ export interface RunOptions {
   maxItems?: number;
   /** RATE_ITEM_IDS: only these item ids go to the model; VF-LIMIT does not apply. */
   onlyIds?: string[];
+  /** MEMORY_MARK: remember reported items for later runs. Default false (check only). */
+  markReported?: boolean;
   warn?: (message: string) => void;
   /** Directory for run logs. Default: data/runs */
   runsDir?: string;
@@ -72,7 +74,7 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
   // Collected along the stages for the run report.
   let entries: ReportEntry[] = [];
   let prefilterSummary: RunReport["prefilter"] = { input: 0, kept: 0, droppedByRule: {}, warnings: [] };
-  let alreadyReportedCount = 0;
+  let alreadyReported: RunReport["alreadyReported"] = [];
   let belowThreshold: RatedItem[] = [];
   const failedRatings: FailedRating[] = [];
   const byScore = (a: RatedItem, b: RatedItem) => b.rating.score - a.rating.score;
@@ -102,13 +104,18 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
 
     const fresh = await stage("memory", filtered.length, async () => {
       const kept: NewsItem[] = [];
-      const alreadyReported: string[] = [];
+      const findings: ({ itemId: string } & MemoryFinding)[] = [];
       for (const item of filtered) {
-        if (await deps.memory.wasReported(item)) alreadyReported.push(item.id);
+        const finding = await deps.memory.wasReported(item);
+        findings.push({ itemId: item.id, ...finding });
+        if (finding.reported) alreadyReported.push({ item, finding });
         else kept.push(item);
       }
-      alreadyReportedCount = alreadyReported.length;
-      return { result: kept, outputCount: kept.length, details: { alreadyReported } };
+      return {
+        result: kept,
+        outputCount: kept.length,
+        details: { alreadyReported: findings.filter((f) => f.reported), findings },
+      };
     });
 
     const rated = await stage("rate", fresh.length, async () => {
@@ -162,11 +169,16 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
         belowThreshold,
         failed: failedRatings,
         prefilter: prefilterSummary,
-        alreadyReported: alreadyReportedCount,
+        alreadyReported,
       });
-      // Mark as reported only after the draft was rendered.
-      for (const e of entries) await deps.memory.markReported(e.item);
-      return { result: undefined, outputCount: entries.length, details: { reported: entries.map((e) => e.item.id) } };
+      // Mark as reported only after the draft was rendered, and only when asked (MEMORY_MARK).
+      const marked = options.markReported === true;
+      if (marked) for (const e of entries) await deps.memory.markReported(e.item);
+      return {
+        result: undefined,
+        outputCount: entries.length,
+        details: { marked, reported: marked ? entries.map((e) => e.item.id) : [] },
+      };
     });
   } catch (err) {
     log.error = err instanceof Error ? `${err.name}: ${err.message}` : String(err);

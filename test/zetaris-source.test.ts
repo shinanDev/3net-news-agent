@@ -38,6 +38,7 @@ test("maps M365 roadmap rows to NewsItems", () => {
   assert.deepEqual(a!.tags, ["Web", "General Availability", "Preview"]);
   assert.deepEqual(a!.m365, {
     products: ["Power Automate"],
+    platforms: ["Web"],
     cloudInstances: ["Worldwide (Standard Multi-Tenant)"],
     gaMonth: "2026-08",
     previewMonth: "2026-06",

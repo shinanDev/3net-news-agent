@@ -82,6 +82,21 @@ ${r.failed
     : "<p>None.</p>"
 }
 
+<h2>Already reported (${r.alreadyReported.length})</h2>
+${
+  r.alreadyReported.length
+    ? `<table>
+<tr><th>Item</th><th>Matched by</th><th>Memory record</th><th>Similarity</th></tr>
+${r.alreadyReported
+  .map(
+    ({ item, finding: f }) =>
+      `<tr><td>${link(item)}</td><td>${esc(f.via ?? "")}</td><td>${esc(f.matchId ?? "")}</td><td>${f.similarity ?? ""}</td></tr>`,
+  )
+  .join("\n")}
+</table>`
+    : "<p>None.</p>"
+}
+
 <h2>Prefilter</h2>
 <table>
 <tr><th>Step</th><th>Items</th></tr>
@@ -90,7 +105,7 @@ ${Object.entries(r.prefilter.droppedByRule)
   .map(([rule, n]) => `<tr><td>Dropped by ${esc(rule)}</td><td>${n}</td></tr>`)
   .join("\n")}
 <tr><td>Passed prefilter</td><td>${r.prefilter.kept}</td></tr>
-<tr><td>Already reported</td><td>${r.alreadyReported}</td></tr>
+<tr><td>Already reported</td><td>${r.alreadyReported.length}</td></tr>
 <tr><td>Sent to model</td><td>${sentToModel}</td></tr>
 </table>
 ${

@@ -20,6 +20,7 @@ export interface NewsItem {
 
 export interface M365Details {
   products: string[];
+  platforms: string[];
   cloudInstances: string[];
   /** General availability month, "YYYY-MM", or null if missing or in another format. */
   gaMonth: string | null;

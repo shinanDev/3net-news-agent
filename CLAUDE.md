@@ -50,6 +50,10 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `RATING_STRICT_MODEL` | `true` (default): a rating fails if the response model differs from `METERLESS_MODEL` |
 | `NIGHTSHIFT_TIMEOUT_MS` | timeout per Nightshift request in ms, default `120000` |
 | `OUTPUT` | run report: `html` (default, file in `data/out/`) or `console` |
+| `MEMORY` | "already reported" store: `none` (default) or `hmem` |
+| `MEMORY_DIR` | folder of the H-MEM memory, default `data/memory/hmem` (use another folder for demos) |
+| `MEMORY_SIMILARITY_THRESHOLD` | similarity at or above which an item counts as reported, default `0.999` |
+| `MEMORY_MARK` | `true`: remember reported items for later runs; default `false` (check only) |
 
 Keep `.env.example` in sync (names only, no values).
 
