@@ -1,5 +1,13 @@
 // Configuration from environment variables. Values are never logged; errors name the variable only.
 
+import {
+  isValidTime,
+  isValidTimeZone,
+  WEEKDAYS,
+  type MaintenanceRule,
+  type Weekday,
+} from "./domain/maintenance-window.ts";
+
 export const USER_AGENT = "3net-news-agent/0.1 (+https://github.com/shinanDev/3net-news-agent)";
 
 /** Loads .env into process.env if the file exists. Variables already set win. */
@@ -76,6 +84,30 @@ export function ratioEnv(name: string, fallback: number): number {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0 || n > 1) throw new Error(`environment variable ${name} must be a number in (0, 1]`);
   return n;
+}
+
+/** DATEV_MAINTENANCE_*: the maintenance window rule; undefined when no ICS path is set. */
+export function maintenanceConfig():
+  | { icsPath: string; rule: MaintenanceRule; lookaheadDays: number }
+  | undefined {
+  const icsPath = process.env["DATEV_MAINTENANCE_ICS_PATH"]?.trim();
+  if (!icsPath) return undefined;
+  const weekday = stringEnv("DATEV_MAINTENANCE_WEEKDAY", "sunday").toLowerCase();
+  if (!(WEEKDAYS as readonly string[]).includes(weekday)) {
+    throw new Error(`environment variable DATEV_MAINTENANCE_WEEKDAY must be one of ${WEEKDAYS.join(", ")}`);
+  }
+  const start = stringEnv("DATEV_MAINTENANCE_START", "19:00");
+  const end = stringEnv("DATEV_MAINTENANCE_END", "07:00");
+  for (const [name, value] of [["DATEV_MAINTENANCE_START", start], ["DATEV_MAINTENANCE_END", end]] as const) {
+    if (!isValidTime(value)) throw new Error(`environment variable ${name} must be a time HH:MM`);
+  }
+  const timeZone = stringEnv("DATEV_MAINTENANCE_TZ", "Europe/Berlin");
+  if (!isValidTimeZone(timeZone)) throw new Error(`environment variable DATEV_MAINTENANCE_TZ is not a known time zone`);
+  return {
+    icsPath,
+    rule: { weekday: weekday as Weekday, start, end, timeZone, sameDay: boolEnv("DATEV_MAINTENANCE_SAME_DAY", false) },
+    lookaheadDays: intEnv("DATEV_MAINTENANCE_LOOKAHEAD_DAYS", 30),
+  };
 }
 
 export const DEFAULT_MEMORY_DIR = "data/memory/hmem";

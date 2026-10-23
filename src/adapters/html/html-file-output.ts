@@ -97,6 +97,7 @@ ${r.alreadyReported
     : "<p>None.</p>"
 }
 
+${r.maintenance ? maintenanceSection(r.maintenance) : ""}
 <h2>Prefilter</h2>
 <table>
 <tr><th>Step</th><th>Items</th></tr>
@@ -143,6 +144,20 @@ function itemBlock(item: NewsItem, rating: Rating): string {
 <ul>
 ${facts.map((f) => `<li>${f}</li>`).join("\n")}
 </ul>`;
+}
+
+function maintenanceSection(m: NonNullable<RunReport["maintenance"]>): string {
+  const rows = m.windows
+    .map(
+      (w) =>
+        `<tr><td>${esc(w.updateDate)}</td><td>${esc(w.summary)}</td><td>${esc(w.startLocal)} to ${esc(w.endLocal)}</td></tr>`,
+    )
+    .join("\n");
+  return `<h2>Maintenance windows (next ${m.lookaheadDays} days, ${m.windows.length})</h2>
+<p>Why this window: ${esc(m.rule)}.</p>
+${m.windows.length ? `<table>\n<tr><th>Update date</th><th>Update</th><th>Maintenance window</th></tr>\n${rows}\n</table>` : "<p>None.</p>"}
+${m.warnings.length ? `<p>Calendar warnings:</p>\n<ul>\n${m.warnings.map((w) => `<li>${esc(w)}</li>`).join("\n")}\n</ul>` : ""}
+`;
 }
 
 function components(rating: Rating): string {

@@ -84,7 +84,7 @@ export interface Summary {
   summarisedAt: string;
 }
 
-export type StageName = "ingest" | "prefilter" | "memory" | "rate" | "summarise" | "output";
+export type StageName = "ingest" | "prefilter" | "memory" | "rate" | "summarise" | "calendar" | "output";
 
 export interface StageLog {
   stage: StageName;

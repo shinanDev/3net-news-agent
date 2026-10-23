@@ -2,7 +2,8 @@
 // SOURCE=stub|zetaris selects the news source, RATER=stub|nightshift the rating model
 // (both default stub), OUTPUT=html|console the run report (default html, data/out/),
 // MEMORY=none|hmem the "already reported" store (default none). Items are only remembered
-// for later runs with MEMORY_MARK=true.
+// for later runs with MEMORY_MARK=true. DATEV_MAINTENANCE_ICS_PATH adds upcoming maintenance
+// windows to the report.
 
 import {
   ConsoleOutput,
@@ -11,6 +12,7 @@ import {
   StubRatingModel,
 } from "./adapters/stub/stubs.ts";
 import { HmemMemoryStore } from "./adapters/hmem/hmem-memory-store.ts";
+import { IcsFileCalendar } from "./adapters/ics/ics-file-calendar.ts";
 import { HtmlFileOutput } from "./adapters/html/html-file-output.ts";
 import { NightshiftClient } from "./adapters/nightshift/nightshift-client.ts";
 import { NightshiftRatingModel } from "./adapters/nightshift/nightshift-rating-model.ts";
@@ -30,6 +32,7 @@ import {
   idListEnv,
   intEnv,
   loadEnv,
+  maintenanceConfig,
   memoryKind,
   optionalIntEnv,
   outputKind,
@@ -97,6 +100,12 @@ const memory =
       })
     : new InMemoryMemoryStore();
 const markReported = boolEnv("MEMORY_MARK", false);
+const maintenanceSettings = maintenanceConfig();
+const maintenance = maintenanceSettings && {
+  calendar: new IcsFileCalendar(maintenanceSettings.icsPath, maintenanceSettings.rule.timeZone),
+  rule: maintenanceSettings.rule,
+  lookaheadDays: maintenanceSettings.lookaheadDays,
+};
 const { log, logPath } = await runPipeline(
   {
     source,
@@ -104,7 +113,13 @@ const { log, logPath } = await runPipeline(
     model,
     output,
   },
-  { rules, markReported, ...(maxItems !== undefined && { maxItems }), ...(onlyIds && { onlyIds }) },
+  {
+    rules,
+    markReported,
+    ...(maxItems !== undefined && { maxItems }),
+    ...(onlyIds && { onlyIds }),
+    ...(maintenance && { maintenance }),
+  },
 );
 
 for (const s of log.stages) console.log(`${s.stage.padEnd(10)} ${s.inputCount} -> ${s.outputCount}`);

@@ -54,6 +54,13 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `MEMORY_DIR` | folder of the H-MEM memory, default `data/memory/hmem` (use another folder for demos) |
 | `MEMORY_SIMILARITY_THRESHOLD` | similarity at or above which an item counts as reported, default `0.999` |
 | `MEMORY_MARK` | `true`: remember reported items for later runs; default `false` (check only) |
+| `DATEV_MAINTENANCE_ICS_PATH` | ICS file with update dates (keep under `data/`, never in the repo); enables the maintenance windows section |
+| `DATEV_MAINTENANCE_WEEKDAY` | weekday of the window, default `sunday` |
+| `DATEV_MAINTENANCE_START` | local start time, default `19:00` |
+| `DATEV_MAINTENANCE_END` | local end time (next day if not after the start), default `07:00` |
+| `DATEV_MAINTENANCE_TZ` | time zone of the window, default `Europe/Berlin` |
+| `DATEV_MAINTENANCE_LOOKAHEAD_DAYS` | show windows starting within this many days, default `30` |
+| `DATEV_MAINTENANCE_SAME_DAY` | `true`: an update on the window weekday gets that day's window; default `false` (next week's; assumption to confirm) |
 
 Keep `.env.example` in sync (names only, no values).
 

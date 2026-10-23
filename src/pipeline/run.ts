@@ -1,9 +1,11 @@
-// Pipeline: ingest -> prefilter -> memory check -> rate -> summarise -> output.
+// Pipeline: ingest -> prefilter -> memory check -> rate -> summarise -> (calendar) -> output.
 // Every stage is recorded in data/runs/<timestamp>.json, also when a stage fails.
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { NewsItem, Rating, RunLog, StageLog, StageName } from "../domain/types.ts";
+import { computeWindow, isUpcoming, ruleText, type MaintenanceRule } from "../domain/maintenance-window.ts";
+import type { MaintenanceCalendar } from "../ports/maintenance-calendar.ts";
 import type { MemoryFinding, MemoryStore } from "../ports/memory-store.ts";
 import type { NewsSource } from "../ports/news-source.ts";
 import type { FailedRating, Output, RatedItem, ReportEntry, RunReport } from "../ports/output.ts";
@@ -27,6 +29,8 @@ export interface RunOptions {
   onlyIds?: string[];
   /** MEMORY_MARK: remember reported items for later runs. Default false (check only). */
   markReported?: boolean;
+  /** Maintenance calendar: upcoming windows go into the report. Absent: the stage is skipped. */
+  maintenance?: { calendar: MaintenanceCalendar; rule: MaintenanceRule; lookaheadDays: number };
   warn?: (message: string) => void;
   /** Directory for run logs. Default: data/runs */
   runsDir?: string;
@@ -158,6 +162,27 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
       return { result, outputCount: result.length, details: { summaries: result.map((e) => e.summary) } };
     });
 
+    // No network, no model: dates from a calendar file and a fixed rule.
+    let maintenance: RunReport["maintenance"];
+    if (options.maintenance) {
+      const { calendar, rule, lookaheadDays } = options.maintenance;
+      maintenance = await stage("calendar", 0, async () => {
+        const { updates, warnings } = await calendar.updates();
+        warnings.forEach(warn);
+        const at = now();
+        const windows = updates
+          .map((u) => ({ uid: u.uid, summary: u.summary, ...computeWindow(u.updateDate, rule) }))
+          .filter((w) => isUpcoming(w, at, lookaheadDays))
+          .sort((a, b) => a.startUtc.localeCompare(b.startUtc) || a.updateDate.localeCompare(b.updateDate));
+        const result = { rule: ruleText(rule), lookaheadDays, windows, warnings };
+        return {
+          result,
+          outputCount: windows.length,
+          details: { source: calendar.name, updates: updates.length, ...result },
+        };
+      });
+    }
+
     await stage("output", entries.length, async () => {
       await deps.output.render({
         runId,
@@ -170,6 +195,7 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
         failed: failedRatings,
         prefilter: prefilterSummary,
         alreadyReported,
+        ...(maintenance && { maintenance }),
       });
       // Mark as reported only after the draft was rendered, and only when asked (MEMORY_MARK).
       const marked = options.markReported === true;

@@ -1,4 +1,5 @@
 import type { FilterDecision, NewsItem, Rating, Summary } from "../domain/types.ts";
+import type { MaintenanceWindow } from "../domain/maintenance-window.ts";
 import type { MemoryFinding } from "./memory-store.ts";
 
 export interface ReportEntry {
@@ -41,6 +42,14 @@ export interface RunReport {
   };
   /** Items that passed the prefilter but were already reported in an earlier run, with the reason. */
   alreadyReported: { item: NewsItem; finding: MemoryFinding }[];
+  /** Upcoming maintenance windows; absent when no maintenance calendar is configured. */
+  maintenance?: {
+    /** The rule as plain text ("why this window"). */
+    rule: string;
+    lookaheadDays: number;
+    windows: (MaintenanceWindow & { uid: string; summary: string })[];
+    warnings: string[];
+  };
 }
 
 export interface Output {

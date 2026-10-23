@@ -108,7 +108,15 @@ All stub adapters are the defaults, so `npm run run` without any configuration r
 | 5. Summarise | Short summary per item above the threshold | Placeholder (returns the title, not shown in the report) |
 | 6. Output | HTML run report in `data/out/` | Working |
 | 6b. Newsletter | Newsletter draft as HTML mail to a local SMTP catcher | Planned |
-| Second source | DATEV maintenance-window calendar (ICS) with its own rule, as a neutral example | Planned |
+| Second source | DATEV update calendar (ICS file): upcoming maintenance windows with the rule that explains them ([details](#maintenance-windows)) | Working (opt-in, `DATEV_MAINTENANCE_ICS_PATH`) |
+
+### Maintenance windows
+
+With `DATEV_MAINTENANCE_ICS_PATH` the agent also reads a calendar of software update dates (an ICS file kept locally under `data/`, not in the repository). For each update it computes the maintenance window with a configurable rule, no model and no network involved: by default the **first Sunday after the update date, 19:00 to Monday 07:00 (Europe/Berlin)**. Example: an update on Thursday 2026-04-16 gets the window Sunday 2026-04-19 19:00 to Monday 2026-04-20 07:00.
+
+**Assumption to confirm:** an update released on a Sunday gets the following Sunday's window by default. With `DATEV_MAINTENANCE_SAME_DAY=true` it is installed the same Sunday evening instead.
+
+The run report lists the windows within the next `DATEV_MAINTENANCE_LOOKAHEAD_DAYS` days (default 30), each with the update date, the update and the window, and states the rule as plain text ("why this window"). The parser is tolerant: malformed `DTSTAMP` values (seen in practice: seven digits in the time part) produce one warning and are ignored, events without a start date are skipped with a warning.
 
 ## Prefilter rules
 
@@ -184,7 +192,7 @@ The run report lists every item that was skipped as already reported, with the s
 
 ```bash
 npm install
-npm test          # 71 tests, no network
+npm test          # 83 tests, no network
 npm run run       # full pipeline with stub adapters, writes data/out/<run>.html
 ```
 
@@ -222,6 +230,13 @@ For live runs:
 | `MEMORY_DIR` | Folder of the H-MEM memory | `data/memory/hmem` |
 | `MEMORY_SIMILARITY_THRESHOLD` | Similarity at or above which an item counts as reported | `0.999` |
 | `MEMORY_MARK` | Remember reported items for later runs | `false` |
+| `DATEV_MAINTENANCE_ICS_PATH` | ICS file with update dates; enables the maintenance windows section | – (off) |
+| `DATEV_MAINTENANCE_WEEKDAY` | Weekday of the window | `sunday` |
+| `DATEV_MAINTENANCE_START` | Local start time | `19:00` |
+| `DATEV_MAINTENANCE_END` | Local end time (next day if not after the start) | `07:00` |
+| `DATEV_MAINTENANCE_TZ` | Time zone of the window | `Europe/Berlin` |
+| `DATEV_MAINTENANCE_LOOKAHEAD_DAYS` | Show windows starting within this many days | `30` |
+| `DATEV_MAINTENANCE_SAME_DAY` | An update on the window weekday gets that day's window (`true`) or the next week's (`false`) | `false` |
 
 Empty values count as not set.
 
@@ -253,8 +268,8 @@ The same flow is covered by the two-run test and was run locally with the stub a
 
 ## Testing
 
-- **71 tests** in 8 files (`test/`), run with the Node.js test runner via `tsx`. No test uses the network: Zetaris and Nightshift calls go to injected fake `fetch` functions, and the H-MEM tests replace `fetch` with one that throws.
-- **Covered:** field mapping from a real (shortened) Zetaris response; HTML stripping and entity decoding; snapshot before mapping and the row-limit warning; every prefilter rule with boundaries (window edge, year change, unknown status, mixed products, `RATE_ITEM_IDS`, `VF-LIMIT`); strict answer parsing (text around the JSON, `</think>`, invalid values), score caps, retries on invalid answers, timeouts and HTTP 5xx, strict model check, receipt metadata without receipt content, prompt-injection markers; failed ratings never scored or reported; HTML escaping and links; H-MEM stages, persistence, ledger without sleep or dreaming, and the two-run proof; configuration parsing (empty values count as not set).
+- **83 tests** in 9 files (`test/`), run with the Node.js test runner via `tsx`. No test uses the network: Zetaris and Nightshift calls go to injected fake `fetch` functions, and the H-MEM tests replace `fetch` with one that throws.
+- **Covered:** field mapping from a real (shortened) Zetaris response; HTML stripping and entity decoding; snapshot before mapping and the row-limit warning; every prefilter rule with boundaries (window edge, year change, unknown status, mixed products, `RATE_ITEM_IDS`, `VF-LIMIT`); strict answer parsing (text around the JSON, `</think>`, invalid values), score caps, retries on invalid answers, timeouts and HTTP 5xx, strict model check, receipt metadata without receipt content, prompt-injection markers; failed ratings never scored or reported; HTML escaping and links; H-MEM stages, persistence, ledger without sleep or dreaming, and the two-run proof; maintenance windows from a synthetic ICS file (folded lines, malformed `DTSTAMP`, update on a Saturday or Sunday with both same-day settings, year change, clock change, nothing upcoming); configuration parsing (empty values count as not set).
 - **Type check** (`npm run typecheck`) and **H-MEM conformance** (`npm run conformance`, 13/13).
 
 ## Security and data
@@ -270,7 +285,6 @@ The same flow is covered by the two-run test and was run locally with the stub a
 - **Routing and latency:** Nightshift answers with a routed Nemotron model and takes 25–80 s per rating; ratings run one after another. A full run (115 items on the snapshot) takes a long time; `RATE_MAX_ITEMS` and `RATE_ITEM_IDS` limit it.
 - **Summaries** are a placeholder; real summaries are planned.
 - **Newsletter output** (HTML mail to a local SMTP catcher) is planned; today the output is an internal run report.
-- **Second source:** the DATEV maintenance-window calendar (ICS) with its own rule, as a neutral example, is planned.
 - **Similarity** in H-MEM uses a hash embedder (see [limitation](#already-reported-h-mem-memory)).
 - **Calibration:** a measurement of the scores against the labelled test sets is planned.
 - **Zetaris:** `CREATE SCHEMASTORE VIEW` on the REST table fails with "Bad Request"; the agent sends the SELECT directly.
