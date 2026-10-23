@@ -28,9 +28,11 @@ Built for the **Open Agent Hackathon 2026** (GenAI.Works), track **The Agent Tha
 
 ## Why it matters
 
-Team 3NET (3NET GmbH, Hamburg) is an IT service provider that wants to keep its customers informed about Microsoft 365 changes that matter to them; the agent prepares a weekly, explained selection for review. The raw material is the Microsoft 365 Roadmap: on 2026-10-23 it listed **2,163 items**. Reading that by hand every week is slow, and most items concern products, clouds or roles the audience does not use.
+Team 3NET (3NET GmbH, Hamburg) is an IT service provider and [DATEV solution partner](https://www.3net.de/leistungen/datev-consulting/) that wants to keep its customers informed about changes that matter to them. Today, preparing such a newsletter means experienced consultants reading vendor announcements by hand: time that is hard to plan and cannot be billed to customers. The Microsoft 365 Roadmap alone listed 2,163 items on 2026-10-23, and most of them concern products, clouds or roles our customers do not use.
 
-The agent does the reading: it filters with rules, scores the remaining items for the target audience (end users and decision makers in small and medium-sized businesses using Microsoft 365), skips what was already reported, and explains every step so that a person can check the result before anything is sent.
+The agent does the reading: it filters with rules, scores the remaining items for the target audience (end users and decision makers in small and medium-sized businesses using Microsoft 365), skips what was already reported, and explains every step. A person reviews the result before anything is sent, so the work shifts from reading everything to checking a short, explained selection.
+
+The pipeline is built to grow: new sources and audiences are added as a source adapter and a relevance profile, not new code paths. Today it covers the Microsoft 365 Roadmap and DATEV maintenance windows; next are further DATEV topics and news about the services 3NET offers (planned).
 
 | Phase | Goal |
 | --- | --- |
