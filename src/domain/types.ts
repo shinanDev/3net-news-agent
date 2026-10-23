@@ -64,6 +64,13 @@ export interface RatingMeta {
   attempts: number;
   /** Model id reported in the response. */
   responseModel: string | null;
+  /** Model that answered according to the Meterless receipt (meterless.routed_model). */
+  routedModel: string | null;
+  /** Latency reported by Meterless (meterless.usage.latency_ms). */
+  latencyMs: number | null;
+  /** Meterless receipt id and envelope signature; no receipt content is stored. */
+  receiptId: string | null;
+  receiptSignature: string | null;
   /** Characters of free text around the JSON answer that were discarded (text itself is not kept). */
   discardedChars: number;
   warnings: string[];

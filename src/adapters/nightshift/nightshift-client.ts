@@ -24,6 +24,32 @@ export interface ChatResult {
   model: string | null;
   /** Duration of each HTTP call, including a failed first one. */
   callDurationsMs: number[];
+  receipt: ReceiptMetadata;
+}
+
+/**
+ * Metadata from the response's `meterless` block. Only these fields are kept; content fields
+ * (prompt_preview, summary, check messages) and the envelope body are never read into it.
+ */
+export interface ReceiptMetadata {
+  routedModel: string | null;
+  latencyMs: number | null;
+  receiptId: string | null;
+  /** receipt_envelope.sig_b64 */
+  receiptSignature: string | null;
+}
+
+export function receiptMetadata(body: unknown): ReceiptMetadata {
+  const m = (body as { meterless?: unknown } | null)?.meterless as Record<string, unknown> | undefined;
+  const usage = m?.["usage"] as Record<string, unknown> | undefined;
+  const envelope = m?.["receipt_envelope"] as Record<string, unknown> | undefined;
+  const str = (v: unknown) => (typeof v === "string" && v ? v : null);
+  return {
+    routedModel: str(m?.["routed_model"]),
+    latencyMs: typeof usage?.["latency_ms"] === "number" ? usage["latency_ms"] : null,
+    receiptId: str(m?.["receipt_id"]),
+    receiptSignature: str(envelope?.["sig_b64"]),
+  };
 }
 
 export class NightshiftError extends Error {
@@ -104,6 +130,7 @@ export class NightshiftClient {
       content,
       model: typeof body.model === "string" ? body.model : null,
       callDurationsMs: [...durations],
+      receipt: receiptMetadata(body),
     };
   }
 }

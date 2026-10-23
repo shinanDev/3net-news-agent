@@ -98,6 +98,7 @@ export class NightshiftRatingModel implements RatingModel {
           callDurationsMs: durations,
           attempts: attempt,
           responseModel: result.model,
+          ...result.receipt,
           discardedChars: parsed.value.discardedChars,
           warnings,
         },

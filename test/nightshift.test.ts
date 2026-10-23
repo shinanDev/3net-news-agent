@@ -48,7 +48,7 @@ const ITEM: NewsItem = {
 const answer = (o: Record<string, unknown>) =>
   JSON.stringify({ baseValue: 7, actionBonus: 1, excluded: false, reasoning: "Teams is a core product. Users get a new feature.", products: ["Teams"], ...o });
 
-type Step = string | number | "timeout" | { content: string; model: string | null };
+type Step = string | number | "timeout" | { content: string; model: string | null; extra?: Record<string, unknown> };
 
 /** Fake fetch answering each call with the next step: content string, HTTP status, or a hang until timeout. */
 function fakeFetch(steps: Step[]) {
@@ -63,8 +63,10 @@ function fakeFetch(steps: Step[]) {
       );
     }
     if (typeof step === "number") return new Response("upstream error", { status: step });
-    const { content, model } = typeof step === "string" ? { content: step, model: "test/model" } : step;
-    return new Response(JSON.stringify({ model, choices: [{ message: { role: "assistant", content } }] }), { status: 200 });
+    const { content, model, extra } = typeof step === "string" ? { content: step, model: "test/model", extra: {} } : step;
+    return new Response(JSON.stringify({ model, choices: [{ message: { role: "assistant", content } }], ...extra }), {
+      status: 200,
+    });
   }) as typeof fetch;
   return { fn, calls };
 }
@@ -85,6 +87,39 @@ test("strict model check (default): a different response model fails the rating"
   });
   assert.equal(calls.length, 1);
   await assert.rejects(model([{ content: answer({}), model: null }]).rater.rate(ITEM), /response model \(none\) differs/);
+});
+
+test("receipt metadata is kept, receipt content is not", async () => {
+  // Shape as seen in a real response (2026-10-23); values are made up.
+  const meterless = {
+    meterless: {
+      requested_model: "test/model",
+      routed_model: "test/model",
+      receipt_id: "rcpt-123",
+      usage: { latency_ms: 4200, output_tokens: 99 },
+      receipt: { prompt_preview: "CONTENT-PREVIEW", summary: "CONTENT-SUMMARY" },
+      receipt_envelope: { body: "CONTENT-BODY", pubkey_b64: "PUBKEY", sig_b64: "SIG==" },
+    },
+    meterless_cross_check: { checks: [{ type: "x", status: "ok", message: "CONTENT-CHECK" }] },
+  };
+  const { rater } = model([{ content: answer({}), model: "test/model", extra: meterless }]);
+  const r = await rater.rate(ITEM);
+  assert.equal(r.meta!.routedModel, "test/model");
+  assert.equal(r.meta!.latencyMs, 4200);
+  assert.equal(r.meta!.receiptId, "rcpt-123");
+  assert.equal(r.meta!.receiptSignature, "SIG==");
+  const stored = JSON.stringify(r);
+  for (const s of ["CONTENT-PREVIEW", "CONTENT-SUMMARY", "CONTENT-BODY", "CONTENT-CHECK", "PUBKEY"]) {
+    assert.ok(!stored.includes(s), `${s} must not be stored`);
+  }
+});
+
+test("missing meterless block gives empty receipt metadata", async () => {
+  const r = await model([answer({})]).rater.rate(ITEM);
+  assert.deepEqual(
+    [r.meta!.routedModel, r.meta!.latencyMs, r.meta!.receiptId, r.meta!.receiptSignature],
+    [null, null, null, null],
+  );
 });
 
 test("strict model check off: a different response model is a warning", async () => {
