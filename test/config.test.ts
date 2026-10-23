@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { intEnv, optionalIntEnv, sourceKind } from "../src/config.ts";
+import { boolEnv, intEnv, optionalIntEnv, sourceKind } from "../src/config.ts";
 
 const NAMES = ["TEST_INT", "SOURCE"];
 const saved = Object.fromEntries(NAMES.map((n) => [n, process.env[n]]));
@@ -31,6 +31,17 @@ test("set values are parsed", () => {
   process.env["TEST_INT"] = " 100 ";
   assert.equal(intEnv("TEST_INT", 3), 100);
   assert.equal(optionalIntEnv("TEST_INT"), 100);
+});
+
+test("boolean values: empty falls back, true/false parsed, others rejected", () => {
+  process.env["TEST_INT"] = "";
+  assert.equal(boolEnv("TEST_INT", true), true);
+  process.env["TEST_INT"] = " FALSE ";
+  assert.equal(boolEnv("TEST_INT", true), false);
+  process.env["TEST_INT"] = "true";
+  assert.equal(boolEnv("TEST_INT", false), true);
+  process.env["TEST_INT"] = "yes";
+  assert.throws(() => boolEnv("TEST_INT", true), /TEST_INT must be "true" or "false"/);
 });
 
 test("invalid values are rejected with the variable name only", () => {

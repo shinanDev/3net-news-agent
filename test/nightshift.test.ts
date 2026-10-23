@@ -47,7 +47,7 @@ const ITEM: NewsItem = {
 const answer = (o: Record<string, unknown>) =>
   JSON.stringify({ baseValue: 7, actionBonus: 1, excluded: false, reasoning: "Teams is a core product. Users get a new feature.", products: ["Teams"], ...o });
 
-type Step = string | number | "timeout";
+type Step = string | number | "timeout" | { content: string; model: string | null };
 
 /** Fake fetch answering each call with the next step: content string, HTTP status, or a hang until timeout. */
 function fakeFetch(steps: Step[]) {
@@ -62,15 +62,37 @@ function fakeFetch(steps: Step[]) {
       );
     }
     if (typeof step === "number") return new Response("upstream error", { status: step });
-    return new Response(JSON.stringify({ model: "test/model", choices: [{ message: { role: "assistant", content: step } }] }), { status: 200 });
+    const { content, model } = typeof step === "string" ? { content: step, model: "test/model" } : step;
+    return new Response(JSON.stringify({ model, choices: [{ message: { role: "assistant", content } }] }), { status: 200 });
   }) as typeof fetch;
   return { fn, calls };
 }
 
-function model(steps: Step[]) {
+function model(steps: Step[], strictModel?: boolean) {
   const f = fakeFetch(steps);
-  return { rater: new NightshiftRatingModel(new NightshiftClient(CONFIG, f.fn), { profile, language: "de", now: () => NOW }), calls: f.calls };
+  const options = { profile, language: "de", now: () => NOW, ...(strictModel !== undefined && { strictModel }) };
+  return { rater: new NightshiftRatingModel(new NightshiftClient(CONFIG, f.fn), options), calls: f.calls };
 }
+
+test("strict model check (default): a different response model fails the rating", async () => {
+  const { rater, calls } = model([{ content: answer({}), model: "other/auto-routed" }]);
+  await assert.rejects(rater.rate(ITEM), (err: unknown) => {
+    assert.ok(err instanceof RatingFailedError);
+    assert.match(err.message, /response model other\/auto-routed differs from configured test\/model/);
+    assert.match(err.message, /registered in Nightshift/);
+    return true;
+  });
+  assert.equal(calls.length, 1);
+  await assert.rejects(model([{ content: answer({}), model: null }]).rater.rate(ITEM), /response model \(none\) differs/);
+});
+
+test("strict model check off: a different response model is a warning", async () => {
+  const { rater } = model([{ content: answer({}), model: "other/auto-routed" }], false);
+  const r = await rater.rate(ITEM);
+  assert.equal(r.score, 8);
+  assert.equal(r.meta!.responseModel, "other/auto-routed");
+  assert.deepEqual(r.meta!.warnings, ["response model other/auto-routed differs from configured test/model"]);
+});
 
 test("valid answer: score from components, request headers and body", async () => {
   const { rater, calls } = model([answer({})]);
@@ -83,6 +105,7 @@ test("valid answer: score from components, request headers and body", async () =
   assert.equal(r.meta!.responseModel, "test/model");
   assert.equal(r.meta!.attempts, 1);
   assert.equal(r.meta!.callDurationsMs.length, 1);
+  assert.equal(r.meta!.discardedChars, 0);
   assert.deepEqual(r.meta!.warnings, []);
 
   const [c] = calls;
@@ -98,9 +121,34 @@ test("valid answer: score from components, request headers and body", async () =
   assert.ok(!c!.body.messages[1]!.content.includes(ITEM.url));
 });
 
-test("fenced JSON is accepted, other text is not", () => {
-  assert.ok(parseAnswer("```json\n" + answer({}) + "\n```").ok);
-  assert.ok(!parseAnswer("Here you go: " + answer({})).ok);
+test("reasoning ending with </think> before the answer is discarded", () => {
+  const before = "<think>Rate it as {baseValue: 2}? No, Teams is core.</think>\n";
+  const r = parseAnswer(before + answer({}));
+  assert.ok(r.ok);
+  assert.equal(r.value.components.baseValue, 7);
+  assert.equal(r.value.discardedChars, before.length);
+});
+
+test("free text after the JSON object is discarded", () => {
+  const after = '\n\nNote: I chose 7 because Teams is a core product. {"not": "this"}';
+  const r = parseAnswer(answer({}) + after);
+  assert.ok(r.ok);
+  assert.equal(r.value.discardedChars, after.length);
+});
+
+test("text before without </think>, fences, and braces inside strings", () => {
+  const r1 = parseAnswer("Here you go:\n```json\n" + answer({}) + "\n```");
+  assert.ok(r1.ok);
+  const r2 = parseAnswer(answer({ reasoning: "Uses {curly} braces and a \\\"quote\\\"." }));
+  assert.ok(r2.ok);
+  assert.equal(r2.value.reasoning, 'Uses {curly} braces and a \\"quote\\".');
+  assert.equal(r2.value.discardedChars, 0);
+});
+
+test("no or unclosed JSON object is invalid", () => {
+  assert.deepEqual(parseAnswer("I cannot rate this."), { ok: false, error: "answer contains no JSON object" });
+  assert.deepEqual(parseAnswer('{"baseValue": 7'), { ok: false, error: "JSON object in answer is not closed" });
+  assert.deepEqual(parseAnswer("{baseValue: 7}"), { ok: false, error: "answer is not valid JSON" });
 });
 
 test("invalid JSON, then valid: second attempt with the error", async () => {
@@ -109,7 +157,7 @@ test("invalid JSON, then valid: second attempt with the error", async () => {
   assert.equal(r.meta!.attempts, 2);
   assert.equal(calls.length, 2);
   const retryMsg = calls[1]!.body.messages.at(-1)!.content;
-  assert.match(retryMsg, /previous answer was invalid: answer is not valid JSON/);
+  assert.match(retryMsg, /previous answer was invalid: answer contains no JSON object/);
 });
 
 test("invalid twice: rating fails, no score", async () => {

@@ -64,6 +64,8 @@ export interface RatingMeta {
   attempts: number;
   /** Model id reported in the response. */
   responseModel: string | null;
+  /** Characters of free text around the JSON answer that were discarded (text itself is not kept). */
+  discardedChars: number;
   warnings: string[];
 }
 

@@ -6,6 +6,8 @@ import type { RatingComponents } from "../../domain/types.ts";
 export interface ParsedAnswer {
   components: RatingComponents;
   reasoning: string;
+  /** Characters of free text around the JSON object that were discarded. */
+  discardedChars: number;
   warnings: string[];
 }
 
@@ -14,6 +16,7 @@ export type ParseResult = { ok: true; value: ParsedAnswer } | { ok: false; error
 const BASE_VALUES = [0, 2, 4, 7] as const;
 const CAPS: Record<RatingComponents["baseValue"], number> = { 0: 0, 2: 3, 4: 6, 7: 10 };
 const FIELDS = ["baseValue", "actionBonus", "excluded", "reasoning", "products"];
+const THINK_END = "</think>";
 export const MAX_REASONING_CHARS = 400;
 
 export function computeScore(c: RatingComponents): number {
@@ -21,18 +24,42 @@ export function computeScore(c: RatingComponents): number {
   return Math.min(c.baseValue + c.actionBonus, CAPS[c.baseValue]);
 }
 
+/**
+ * Drops everything up to and including the last "</think>", then returns the first balanced
+ * top-level JSON object (braces inside strings are ignored). Nothing inside the object is repaired.
+ */
+export function extractJsonObject(text: string): { json: string; discardedChars: number } | { error: string } {
+  const thinkEnd = text.lastIndexOf(THINK_END);
+  const rest = thinkEnd >= 0 ? text.slice(thinkEnd + THINK_END.length) : text;
+  const start = rest.indexOf("{");
+  if (start < 0) return { error: "answer contains no JSON object" };
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < rest.length; i++) {
+    const ch = rest[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}" && --depth === 0) {
+      const json = rest.slice(start, i + 1);
+      return { json, discardedChars: text.length - json.length };
+    }
+  }
+  return { error: "JSON object in answer is not closed" };
+}
+
 export function parseAnswer(text: string): ParseResult {
-  // Only a surrounding ```json fence is tolerated; nothing else is repaired.
-  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/.exec(text.trim());
-  const json = fenced ? fenced[1]! : text.trim();
+  const extracted = extractJsonObject(text);
+  if ("error" in extracted) return { ok: false, error: extracted.error };
   let value: unknown;
   try {
-    value = JSON.parse(json);
+    value = JSON.parse(extracted.json);
   } catch {
     return { ok: false, error: "answer is not valid JSON" };
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { ok: false, error: "answer is not a JSON object" };
   }
   const v = value as Record<string, unknown>;
   const extra = Object.keys(v).filter((k) => !FIELDS.includes(k));
@@ -70,6 +97,7 @@ export function parseAnswer(text: string): ParseResult {
         products: products as string[],
       },
       reasoning: reasoning.trim(),
+      discardedChars: extracted.discardedChars,
       warnings,
     },
   };

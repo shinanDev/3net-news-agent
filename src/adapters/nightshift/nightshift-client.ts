@@ -1,7 +1,7 @@
 // Minimal client for the Meterless Nightshift runtime (OpenAI-compatible chat completions).
 // One retry on timeout, network error or HTTP 5xx. Errors never contain the token or headers.
 
-import { USER_AGENT } from "../../config.ts";
+import { DEFAULT_NIGHTSHIFT_TIMEOUT_MS, USER_AGENT } from "../../config.ts";
 
 export interface NightshiftConfig {
   baseUrl: string;
@@ -9,7 +9,7 @@ export interface NightshiftConfig {
   model: string;
   app: string;
   scope: string;
-  /** Default 60 s per HTTP call. */
+  /** Default 120 s per HTTP call; large models took 45-50 s per call. */
   timeoutMs?: number;
 }
 
@@ -78,7 +78,7 @@ export class NightshiftClient {
           "User-Agent": USER_AGENT,
         },
         body: JSON.stringify({ model: this.config.model, messages, temperature: 0 }),
-        signal: AbortSignal.timeout(this.config.timeoutMs ?? 60_000),
+        signal: AbortSignal.timeout(this.config.timeoutMs ?? DEFAULT_NIGHTSHIFT_TIMEOUT_MS),
       });
       text = await res.text();
     } catch (err) {

@@ -36,7 +36,7 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `METERLESS_BASE_URL` | e.g. `http://127.0.0.1:8088/v1` |
 | `METERLESS_RUNTIME_TOKEN` | Nightshift API key from the Nightshift console |
 | `METERLESS_MODEL` | `nvidia/nemotron-3.5-lightning-30b-a3b` |
-| `METERLESS_APP` | value of the `meterless-app` header, e.g. `3net-news-agent` |
+| `METERLESS_APP` | value of the `meterless-app` header; must be an app name registered in the Nightshift console |
 | `METERLESS_SCOPE` | value of the `meterless-scope` header, `user` |
 | `SOURCE` | news source: `stub` (default) or `zetaris` |
 | `ZETARIS_ROW_LIMIT` | row limit for the roadmap query, default `5000` |
@@ -46,6 +46,8 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `RATER` | rating model: `stub` (default) or `nightshift` |
 | `RATING_LANGUAGE` | language of the rating reasoning, default `en` |
 | `RATING_PROFILE` | path to the relevance profile, default `config/profile.m365.json` |
+| `RATING_STRICT_MODEL` | `true` (default): a rating fails if the response model differs from `METERLESS_MODEL` |
+| `NIGHTSHIFT_TIMEOUT_MS` | timeout per Nightshift request in ms, default `120000` |
 
 Keep `.env.example` in sync (names only, no values).
 
@@ -54,6 +56,7 @@ Keep `.env.example` in sync (names only, no values).
 **Zetaris:** `POST {ZETARIS_REST_URL}/sql-editor/sqls/run` with headers `Authorization: Bearer <key>`, `X-Org-ID: <org id>`, `X-Request-ID: <fresh UUID>` and body `{ "queryId": <fresh UUID>, "sql": "...", "source": "SqlEditor", "limit": <n> }`. Send one statement per request. Results are in `data`.
 
 **Nightshift:** `POST {METERLESS_BASE_URL}/chat/completions` (OpenAI-compatible) with headers `Authorization: Bearer <runtime token>`, `meterless-app: <METERLESS_APP>`, `meterless-scope: <METERLESS_SCOPE>` (both required). Use a generous timeout (requests take several seconds). `GET /v1/models` lists available models.
+The app name in `meterless-app` must be registered in the Nightshift console. For an unregistered name Nightshift ignores the requested model and routes automatically to another model; the response `model` field shows which one answered.
 
 **User-Agent for outgoing HTTP requests:** `3net-news-agent/0.1 (+https://github.com/shinanDev/3net-news-agent)`.
 

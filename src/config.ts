@@ -49,6 +49,16 @@ export function stringEnv(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
 }
 
+/** "true"/"false" (case-insensitive); empty or unset falls back to the default. */
+export function boolEnv(name: string, fallback: boolean): boolean {
+  const value = process.env[name]?.trim().toLowerCase();
+  if (!value) return fallback;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`environment variable ${name} must be "true" or "false"`);
+}
+
+export const DEFAULT_NIGHTSHIFT_TIMEOUT_MS = 120_000;
 export const DEFAULT_RATING_LANGUAGE = "en";
 export const DEFAULT_RATING_PROFILE = "config/profile.m365.json";
 

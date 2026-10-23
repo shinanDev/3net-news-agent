@@ -14,6 +14,8 @@ import { loadProfile } from "./adapters/nightshift/prompt.ts";
 import { ZetarisClient } from "./adapters/zetaris/zetaris-client.ts";
 import { ZetarisNewsSource } from "./adapters/zetaris/zetaris-news-source.ts";
 import {
+  boolEnv,
+  DEFAULT_NIGHTSHIFT_TIMEOUT_MS,
   DEFAULT_PREFILTER_HORIZON_MONTHS,
   DEFAULT_PREFILTER_NEW_DAYS,
   DEFAULT_RATING_LANGUAGE,
@@ -52,10 +54,12 @@ async function createModel(): Promise<RatingModel> {
     model: requireEnv("METERLESS_MODEL"),
     app: requireEnv("METERLESS_APP"),
     scope: requireEnv("METERLESS_SCOPE"),
+    timeoutMs: intEnv("NIGHTSHIFT_TIMEOUT_MS", DEFAULT_NIGHTSHIFT_TIMEOUT_MS),
   });
   return new NightshiftRatingModel(client, {
     profile: await loadProfile(stringEnv("RATING_PROFILE", DEFAULT_RATING_PROFILE)),
     language: stringEnv("RATING_LANGUAGE", DEFAULT_RATING_LANGUAGE),
+    strictModel: boolEnv("RATING_STRICT_MODEL", true),
   });
 }
 
