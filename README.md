@@ -247,7 +247,7 @@ MEMORY=hmem MEMORY_DIR=data/memory/demo MEMORY_MARK=true RATE_ITEM_IDS=573696 np
 # Run 2: same command; the report shows "Already reported (1)" (via url) instead of a new rating
 ```
 
-The same flow is covered by the two-run test and was run locally with the stub adapters (`SOURCE=stub RATER=stub MEMORY=hmem MEMORY_MARK=true`); the live sequence above is documented but has not been recorded yet.
+The same flow is covered by the two-run test and was run locally with the stub adapters (`SOURCE=stub RATER=stub MEMORY=hmem MEMORY_MARK=true`). Recorded live on 2026-10-23: run 1 rated 573696 (score 8, answering model `nvidia/nemotron-3-ultra-550b-a55b`, receipt `rcpt_req_jk2wk5mu`) and remembered it; run 2 skipped it as already reported (`via url`, record `mem-1`) without calling the model.
 
 ## Testing
 
