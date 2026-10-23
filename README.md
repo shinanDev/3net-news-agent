@@ -28,7 +28,7 @@ Built for the **Open Agent Hackathon 2026** (GenAI.Works), track **The Agent Tha
 
 ## Why it matters
 
-Team 3NET (3NET GmbH, Hamburg) is an IT service provider that wants to send its customers a weekly newsletter about Microsoft 365 changes that matter to them. The raw material is the Microsoft 365 Roadmap: on 2026-10-23 it listed **2,163 items**. Reading that by hand every week is slow, and most items concern products, clouds or roles the audience does not use.
+Team 3NET (3NET GmbH, Hamburg) is an IT service provider that wants to keep its customers informed about Microsoft 365 changes that matter to them; the agent prepares a weekly, explained selection for review. The raw material is the Microsoft 365 Roadmap: on 2026-10-23 it listed **2,163 items**. Reading that by hand every week is slow, and most items concern products, clouds or roles the audience does not use.
 
 The agent does the reading: it filters with rules, scores the remaining items for the target audience (end users and decision makers in small and medium-sized businesses using Microsoft 365), skips what was already reported, and explains every step so that a person can check the result before anything is sent.
 
@@ -59,7 +59,7 @@ Every decision in a run is recorded with its reason, in the run log (`data/runs/
 | Score | **8** (computed in code: 7 + 1, cap for base 7 is 10) |
 | Reasoning | "Copilot Search directly targets core Microsoft 365 products SharePoint and OneDrive, bringing AI-powered natural-language search to both. Preview begins this month (October 2026), giving users a concrete new capability to try without any required action." |
 | Requested model | `nvidia/nemotron-3.5-lightning-30b-a3b` |
-| Answering model | `nvidia/nemotron-3.5-super-vl-120b-a12b` (from the Meterless receipt, see [routing](#model-and-routing-transparency)) |
+| Answering model | `nvidia/nemotron-3.5-super-vl-120b-a12b` (from the Meterless receipt; in another run the same item was answered by `nvidia/nemotron-3-ultra-550b-a55b`, see [routing](#model-and-routing-transparency)) |
 | Receipt id | `rcpt_req_xrxfo8v2` (the receipt signature is stored in the run log only) |
 
 <img src="assets/run-report.png" alt="HTML run report of demo run 2: item 573696 skipped as already reported via url, prefilter counts per rule" width="600">
@@ -304,7 +304,7 @@ PROGRESS.md               Daily progress log
 
 | Source | Access | Use |
 | --- | --- | --- |
-| [Microsoft 365 Roadmap](https://www.microsoft.com/microsoft-365/roadmap) | Public JSON API, no authentication | Titles, own short summaries and links to the original items; terms of use are under review |
+| [Microsoft 365 Roadmap](https://www.microsoft.com/microsoft-365/roadmap) | Public JSON API, no authentication | Titles, descriptions (used for rating only) and links to the original items; own short summaries are planned; terms of use are under review |
 
 ## License
 
