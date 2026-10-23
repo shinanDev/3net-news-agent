@@ -13,7 +13,7 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 
 - **Language:** TypeScript on Node.js LTS. Run TypeScript with `npx tsx`.
 - **Data (Zetaris):** read and query layer only. Writing rows via SQL is not documented. The Microsoft 365 Roadmap is registered as a Lightning REST table (`zetaris/m365_roadmap.sql`). The agent sends the SELECT with `LATERAL VIEW explode(value)` directly. `CREATE SCHEMASTORE VIEW` on that table currently fails with "Bad Request".
-- **Model (Meterless Nightshift):** OpenAI-compatible runtime, model id set explicitly to `nvidia/nemotron-3.5-lightning-30b-a3b` (direct id works, tested). Do not use `meterless/auto` for scoring.
+- **Model (Meterless Nightshift):** OpenAI-compatible runtime, model id set explicitly to `nvidia/nemotron-3.5-lightning-30b-a3b` (direct id works, tested). Request the configured model; Nightshift may route to another Nemotron model; the response model is logged per rating.
 - **Meterless Engine:** H-MEM for "already reported" across weekly runs. Base it on the reference in `Meterless/Meterless` (`engines/hmem/reference`, Apache-2.0) and declare it in the README. Do not run the sleep cycle automatically. Duplicate check in two stages: exact URL match first, then H-MEM similarity with its own, stricter threshold.
 - **Architecture:** pipeline, not an autonomous agent. The model only scores and summarises text. It gets no tools and no credentials. Storage, model and output sit behind small interfaces (ports and adapters), so a run without sponsor components stays possible.
 
@@ -57,6 +57,15 @@ Keep `.env.example` in sync (names only, no values).
 
 **Nightshift:** `POST {METERLESS_BASE_URL}/chat/completions` (OpenAI-compatible) with headers `Authorization: Bearer <runtime token>`, `meterless-app: <METERLESS_APP>`, `meterless-scope: <METERLESS_SCOPE>` (both required). Use a generous timeout (requests take several seconds). `GET /v1/models` lists available models.
 The app name in `meterless-app` must be registered in the Nightshift console. For an unregistered name Nightshift ignores the requested model and routes automatically to another model; the response `model` field shows which one answered.
+
+**Known issue: model routing (open, no fix).** Even with a registered app name, Nightshift does not reliably answer with the requested model. Probe on 2026-10-23 with `scripts/nightshift-probe.ts` (variants A-H, 15 calls in total), requested model `nvidia/nemotron-3.5-lightning-30b-a3b`:
+- A minimal request (user message "Reply with OK.", `temperature: 0`, only the required headers) was answered by the requested model 3 of 3 times.
+- The same request plus `Accept` and/or `User-Agent`, and any request with the rating prompt (also with only the required headers), was answered by `nemotron-3-ultra-550b-a55b` or `nemotron-3.5-super-vl-120b-a12b`.
+- A later control call with the minimal request was also answered by `nemotron-3-ultra-550b-a55b`.
+- `/no_think` as first system message plus `max_tokens: 2000` (4 calls): still routed; ratings took 25-30 s and the JSON was valid, but about 1,700 characters of extra text came with it.
+- The response metadata (`meterless` block) shows why: `provider_model` and `receipt.requested_mode` are `meterless/auto` although `requested_model` is the configured id, so the concrete id is coerced to auto mode. The app policy (`receipt.app_policy`) has `requested_mode: auto` and `race_width: 6`; `receipt.routing` shows `policy: learned-router`, `reason: uncertain-explore` and 3 raced candidates. Whether the app policy in the Nightshift console can pin a model is not yet checked.
+- Calls took 11-53 s, also for the minimal request.
+`RATING_STRICT_MODEL=true` rejects such ratings; for development it is set to `false` and the response model is logged per rating. `meterless.routed_model` in each response names the model that answered.
 
 **User-Agent for outgoing HTTP requests:** `3net-news-agent/0.1 (+https://github.com/shinanDev/3net-news-agent)`.
 
