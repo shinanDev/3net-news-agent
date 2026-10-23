@@ -17,6 +17,8 @@ Newest entries first. One entry per working day: what was done, what was decided
 - H-MEM "already reported" done: reference vendored unchanged in `vendor/hmem/` (Meterless/Meterless, commit `1742dec`), exact URL first, then similarity with a strict threshold (0.999); conformance 13/13 and a two-run proof (the second run reports the item as already reported via URL).
 - Meterless (sponsor) confirmed in the HackOS 'Help Meterless' channel (2026-10-23, 14:12) that the vendored H-MEM reference in a working feature satisfies the engine requirement.
 - 71 tests green.
+- Live two-run demo recorded: run 1 rated 573696 (score 8, answering model `nvidia/nemotron-3-ultra-550b-a55b`, receipt `rcpt_req_jk2wk5mu`) and remembered it; run 2 skipped it as already reported (`via url`, record `mem-1`) without calling the model.
+- README rewritten for the jury: pitch and impact, "explain why" with a real rating example, architecture diagram, pipeline status, prefilter and scoring, model routing, H-MEM with proof, sponsor technology, quick start, testing, security, limitations. 3NET logo and a screenshot of the run report added under `assets/`.
 
 **Decided**
 - `RATING_STRICT_MODEL=false` for development; the answering model is logged per rating.
@@ -42,7 +44,8 @@ Newest entries first. One entry per working day: what was done, what was decided
 - ~~TypeScript scaffold, M365 ingestion via Zetaris, H-MEM reference test, Nightshift model adapter, prefilter with rule IDs.~~ Done.
 - Nightshift: check in the console whether the app policy can pin a model; ratings take 30-80 s per item.
 - Real summaries (summarise is still a placeholder), newsletter output (HTML mail to a local SMTP catcher), test-set measurement with the rating date (round 2: 2026-10-19).
-- README: update the step table and repository layout to the current state.
+- ~~README: update the step table and repository layout to the current state.~~ Done with the README rewrite.
+- In the demo the reasoning for 573696 was word for word the same as in an earlier run, although another model answered; check whether Meterless serves cached answers.
 - DATEV ICS source with the maintenance window rule (neutral example).
 - Prove a run without sponsor components.
 - ~~Logo: written approval from management and the file from an official internal source.~~ Approved; added as `assets/3net-logo.png`.
