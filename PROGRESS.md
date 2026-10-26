@@ -2,6 +2,57 @@
 
 Newest entries first. One entry per working day: what was done, what was decided, what is open.
 
+## 2026-10-26 (build day 3)
+
+**Done**
+- Checked that Friday's commits are on `main` (same-day default for maintenance windows, `.env.example`).
+- Test-set measurement (`scripts/measure-testsets.ts`): human labels from two rounds (`data/testsets/`, not in the repository), saved snapshot of 2026-10-23, prefilter as of each rating date with VF-NEU and VF-LIMIT off, M=3 and M=4, rating with the rating date as "today". 21 ratings, none failed. Result: recall 100 % on both rounds (no relevant item missed), precision 86 % on the calibration set and 20 % on the holdout set, accuracy 93 % / 73 %. Validity notes in the report; results in the README.
+- Newsletter mail (`OUTPUT=newsletter`): mail-safe HTML (tables, 600 px, inline CSS, no external resources, no tracking) with plain-text part and CID logo, dark theme from the logo colors (WCAG AA checked by a test), English and German labels. Written to `data/out/`, sent only to a local SMTP catcher (Mailpit); other hosts are refused unless explicitly allowed.
+- Real summaries: own prompt and strict JSON answer (`summary`, `whyItMatters`), same markers as the rating, copy check (8 consecutive words), one retry; only for items above the threshold. The rating prompt is unchanged.
+- Two audiences (`NEWSLETTER_AUDIENCE`): `reviewers` (draft with score badge, components and the agent's reasoning) and `customers` (approved version with availability line, without scores, reasoning or run details). Polish after review: compact badge, muted reasoning, roadmap link, one line per maintenance window.
+- Live runs to Mailpit with 573696 (score 8 = 7 + 1, summarised) and 577819 (score 0, not summarised); the second run with the DATEV calendar showed the windows on 1 Nov and 29 Nov.
+- `scripts/render-newsletter.ts` renders both audiences again from a run log and its snapshot without model calls; used to send both versions to Mailpit.
+- Mailpit HTML check: supported 93.5 % before, 95.3 % (reviewers) and 94.6 % (customers) after the fixes for Outlook and Gmail.
+- Screenshots of both newsletter versions in Mailpit (team).
+- Run without sponsor components: a run with stub source and stub rater produced run report and newsletter end to end (no Zetaris, Nightshift or H-MEM). The README states that `npm run run` without any configuration uses the stub adapters (section "Architecture").
+- 119 tests green, type check clean.
+
+**Decided**
+- Measurement: failed ratings count as "not relevant"; ratings use the rating date as "today".
+- The measurement is reported as it is. The rubric is not changed now; a change for small features in core products is measured on a new labelled round, so the holdout result stays independent.
+- Recall matters more than precision: a person reviews every draft, a missed item never reaches the reviewer.
+- Summary and "Why this matters" are for readers; the rating reasoning is shown to reviewers only.
+- A failed summary keeps the item in the newsletter without summary; the run continues.
+- Language mix documented instead of coupled: for a fully German draft set `RATING_LANGUAGE=de` as well.
+- `nodemailer` 10.2.1 (MIT-0) and `@types/nodemailer` 8.0.2, pinned to exact versions.
+- The roadmap link is shown in both audiences.
+- `.env.example` is maintained by the team.
+
+**Learned**
+- All five false positives follow one pattern: a small feature in a core product gets `baseValue` 7, plus `actionBonus` 1 for "a concrete benefit once available"; the reasoning is near-identical across items.
+- The two rounds were labelled with different strictness (round 1 by a domain expert, round 2 by the team).
+- M=3 and M=4 give the same result on the test sets; the choice of M is not decidable from them.
+- VF-HORIZONT counts whole months inclusive; this was decided after the holdout case 573696 was known, so the holdout result for that rule is not fully independent.
+- Routing stays: in the measurement 18 of 21 answers came from `nemotron-3-ultra-550b-a55b`, 2 from `nemotron-3.5-super-vl-120b-a12b`, 1 from the requested model; all newsletter calls were answered by the ultra model. 40-115 s per call.
+- The maintenance look-ahead counts the window start: with 30 days on 2026-10-26 the window of 29 Nov is not included.
+- `formatRange` in ICU puts thin spaces around the range dash in English; tests must not expect a plain dash.
+- `process.loadEnvFile` does not override variables already set in the environment, so per-run settings on the command line take precedence over `.env`.
+
+**Open**
+- Rubric change for small features in core products, measured on a new labelled round.
+- Nightshift: check in the console whether the app policy can pin a model; check whether Meterless serves cached answers.
+- Repository license.
+- Sponsor tech and tools statement for the submission (rule 6.4); check the Rules channel for changes to 5.1/6.4.
+- Ask Zetaris mentors about the view error.
+- Maintenance windows, edge case: a release on a Sunday after the window has started.
+- Record the demo video (storyboard ready).
+- Finish the slide deck (update the test count).
+- README: DATEV partner wording and link from 3net.de.
+- Optional: DATEV partner logo in the newsletter, only with an official file and permission.
+- Customer version: drop the source-code link for the internal version.
+- Internal submission and status to the CTO.
+- Build window ends on 2026-10-27: submission.
+
 ## 2026-10-23 (build day 2)
 
 **Done**
@@ -49,13 +100,13 @@ Newest entries first. One entry per working day: what was done, what was decided
 - ~~Check that `npx tsx --version` runs.~~ Works.
 - ~~TypeScript scaffold, M365 ingestion via Zetaris, H-MEM reference test, Nightshift model adapter, prefilter with rule IDs.~~ Done.
 - Nightshift: check in the console whether the app policy can pin a model; ratings take 30-80 s per item.
-- Real summaries (summarise is still a placeholder), newsletter output (HTML mail to a local SMTP catcher), test-set measurement with the rating date (round 2: 2026-10-19).
+- ~~Real summaries (summarise is still a placeholder), newsletter output (HTML mail to a local SMTP catcher), test-set measurement with the rating date (round 2: 2026-10-19).~~ Done on 2026-10-26.
 - ~~README: update the step table and repository layout to the current state.~~ Done with the README rewrite.
 - In the demo the reasoning for 573696 was word for word the same as in an earlier run, although another model answered; check whether Meterless serves cached answers.
 - ~~DATEV ICS source with the maintenance window rule (neutral example).~~ Done.
 - Maintenance windows, edge case: a release on a Sunday after the window has started (ICS dates are usually date-only, so the release time is unknown).
 - ~~README "Why it matters": DATEV partner wording and link from 3net.de (Monday).~~ Done.
-- Prove a run without sponsor components.
+- ~~Prove a run without sponsor components.~~ Done on 2026-10-26 (stub source and stub rater, run report and newsletter).
 - ~~Logo: written approval from management and the file from an official internal source.~~ Approved; added as `assets/3net-logo.png`.
 - Repository license.
 - Check the Rules channel for changes to 5.1/6.4; screenshot of the 22.10 announcement.
