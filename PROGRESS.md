@@ -47,7 +47,6 @@ Newest entries first. One entry per working day: what was done, what was decided
 - Maintenance windows, edge case: a release on a Sunday after the window has started.
 - Record the demo video (storyboard ready).
 - Finish the slide deck (update the test count).
-- README: DATEV partner wording and link from 3net.de.
 - Optional: DATEV partner logo in the newsletter, only with an official file and permission.
 - Customer version: drop the source-code link for the internal version.
 - Internal submission and status to the CTO.
