@@ -1,0 +1,13 @@
+{
+  "companyName": "Example GmbH",
+  "partnerLine": "Example Solution Partner",
+  "addressLine": "Street 1 | 12345 City",
+  "phone": "+49 00 000000-0",
+  "website": "https://www.example.com",
+  "email": "info@example.com",
+  "legalLines": [
+    "Managing directors: Name 1, Name 2",
+    "Register court: City, HRB 00000 | VAT ID: DE000000000"
+  ],
+  "privacyUrl": "https://www.example.com/privacy"
+}

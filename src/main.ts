@@ -17,6 +17,7 @@ import { IcsFileCalendar } from "./adapters/ics/ics-file-calendar.ts";
 import { HtmlFileOutput } from "./adapters/html/html-file-output.ts";
 import { MultiOutput } from "./adapters/multi-output.ts";
 import { NewsletterMailOutput } from "./adapters/newsletter/newsletter-mail-output.ts";
+import { loadNewsletterExtras } from "./adapters/newsletter/signature.ts";
 import { loadBrand } from "./domain/brand.ts";
 import { NightshiftClient } from "./adapters/nightshift/nightshift-client.ts";
 import { NightshiftRatingModel } from "./adapters/nightshift/nightshift-rating-model.ts";
@@ -104,7 +105,14 @@ const outputs: Output[] = [];
 for (const kind of outputKinds()) {
   if (kind === "html") outputs.push(new HtmlFileOutput());
   else if (kind === "console") outputs.push(new ConsoleOutput());
-  else outputs.push(new NewsletterMailOutput({ ...newsletterSettings, brand: await loadBrand() }));
+  else {
+    const { signaturePath, partnerLogoPath, ...settings } = newsletterSettings;
+    const extras = await loadNewsletterExtras({
+      ...(signaturePath && { signaturePath }),
+      ...(partnerLogoPath && { partnerLogoPath }),
+    });
+    outputs.push(new NewsletterMailOutput({ ...settings, ...extras, brand: await loadBrand() }));
+  }
 }
 const output = outputs.length === 1 ? outputs[0]! : new MultiOutput(outputs);
 const memory =

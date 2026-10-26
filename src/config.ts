@@ -82,6 +82,8 @@ export function newsletterConfig(): {
   from: string;
   to: string;
   logoPath: string;
+  signaturePath?: string;
+  partnerLogoPath?: string;
   smtp?: { host: string; port: number; allowRemote: boolean };
 } {
   const language = stringEnv("NEWSLETTER_LANGUAGE", "en");
@@ -91,12 +93,16 @@ export function newsletterConfig(): {
     throw new Error(`environment variable NEWSLETTER_AUDIENCE must be "reviewers" or "customers"`);
   }
   const host = process.env["NEWSLETTER_SMTP_HOST"]?.trim();
+  const signaturePath = process.env["NEWSLETTER_SIGNATURE_PATH"]?.trim();
+  const partnerLogoPath = process.env["NEWSLETTER_PARTNER_LOGO_PATH"]?.trim();
   return {
     language,
     audience,
     from: stringEnv("NEWSLETTER_FROM", DEFAULT_NEWSLETTER_FROM),
     to: stringEnv("NEWSLETTER_TO", DEFAULT_NEWSLETTER_TO),
     logoPath: stringEnv("BRAND_LOGO_PATH", DEFAULT_BRAND_LOGO_PATH),
+    ...(signaturePath && { signaturePath }),
+    ...(partnerLogoPath && { partnerLogoPath }),
     ...(host && {
       smtp: {
         host,

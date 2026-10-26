@@ -10,6 +10,7 @@ import nodemailer from "nodemailer";
 import type { Brand } from "../../domain/brand.ts";
 import type { Output, RunReport } from "../../ports/output.ts";
 import { renderNewsletter, type NewsletterAudience, type NewsletterLanguage } from "./render.ts";
+import type { PartnerLogo, Signature } from "./signature.ts";
 
 export interface SmtpSettings {
   host: string;
@@ -33,11 +34,16 @@ export interface NewsletterOptions {
   /** Default: data/out */
   outDir?: string;
   timeZone?: string;
+  /** Signature above the footer; absent: none. */
+  signature?: Signature;
+  /** Partner badge in the signature, as a second inline attachment; absent: none. */
+  partnerLogo?: PartnerLogo;
   sendRaw?: SendRaw;
 }
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 const LOGO_CID = "logo@3net-news-agent";
+const PARTNER_CID = "partner@3net-news-agent";
 
 /** Throws unless the host is local or remote hosts are explicitly allowed. */
 export function checkSmtpHost(host: string, allowRemote: boolean): void {
@@ -74,9 +80,20 @@ export class NewsletterMailOutput implements Output {
       audience: o.audience,
       brand: o.brand,
       ...(o.timeZone && { timeZone: o.timeZone }),
+      ...(o.signature && { signature: o.signature }),
     };
-    const mail = renderNewsletter(report, { ...renderOptions, logoSrc: `cid:${LOGO_CID}` });
-    const review = renderNewsletter(report, { ...renderOptions, logoSrc: `data:image/png;base64,${logo.toString("base64")}` });
+    const partner = o.signature ? o.partnerLogo : undefined;
+    const dataUri = (content: Buffer, type: string) => `data:${type};base64,${content.toString("base64")}`;
+    const mail = renderNewsletter(report, {
+      ...renderOptions,
+      logoSrc: `cid:${LOGO_CID}`,
+      ...(partner && { partnerLogoSrc: `cid:${PARTNER_CID}` }),
+    });
+    const review = renderNewsletter(report, {
+      ...renderOptions,
+      logoSrc: dataUri(logo, "image/png"),
+      ...(partner && { partnerLogoSrc: dataUri(partner.content, partner.contentType) }),
+    });
 
     const composer = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "windows" });
     const info = await composer.sendMail({
@@ -85,7 +102,12 @@ export class NewsletterMailOutput implements Output {
       subject: mail.subject,
       text: mail.text,
       html: mail.html,
-      attachments: [{ filename: "3net-logo.png", content: logo, cid: LOGO_CID, contentType: "image/png", contentDisposition: "inline" }],
+      attachments: [
+        { filename: "3net-logo.png", content: logo, cid: LOGO_CID, contentType: "image/png", contentDisposition: "inline" },
+        ...(partner
+          ? [{ filename: "partner-badge", content: partner.content, cid: PARTNER_CID, contentType: partner.contentType, contentDisposition: "inline" as const }]
+          : []),
+      ],
     });
     const raw = info.message as Buffer;
 

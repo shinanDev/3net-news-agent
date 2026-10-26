@@ -10,6 +10,7 @@ import type { Brand } from "../../domain/brand.ts";
 import { WEEKDAYS, type MaintenanceRule } from "../../domain/maintenance-window.ts";
 import type { ReportEntry, RunReport } from "../../ports/output.ts";
 import { answeringModel, esc, isHttpUrl } from "../html/html-file-output.ts";
+import { isHttpsUrl, isPlainEmail, type Signature } from "./signature.ts";
 
 export type NewsletterLanguage = "en" | "de";
 export const NEWSLETTER_LANGUAGES: readonly NewsletterLanguage[] = ["en", "de"];
@@ -31,6 +32,10 @@ export interface RenderOptions {
   logoSrc: string;
   /** Time zone for dates in the mail. Default Europe/Berlin. */
   timeZone?: string;
+  /** Signature block above the footer (NEWSLETTER_SIGNATURE_PATH); absent: no signature. */
+  signature?: Signature;
+  /** Image source of the partner badge in the signature; absent: no badge. */
+  partnerLogoSrc?: string;
 }
 
 interface Labels {
@@ -61,6 +66,7 @@ interface Labels {
   models: string;
   repo: string;
   sender: string;
+  privacy: string;
   statuses: Record<string, string>;
   ruleText: (rule: MaintenanceRule, english: string) => string;
 }
@@ -97,6 +103,7 @@ const LABELS: Record<NewsletterLanguage, Labels> = {
     models: "Answering models",
     repo: "Source code",
     sender: "From 3NET, prepared with the 3NET News Agent.",
+    privacy: "Privacy policy",
     statuses: {},
     ruleText: (_rule, english) => english.charAt(0).toUpperCase() + english.slice(1),
   },
@@ -134,6 +141,7 @@ const LABELS: Record<NewsletterLanguage, Labels> = {
     models: "Antwortende Modelle",
     repo: "Quellcode",
     sender: "Von 3NET, erstellt mit dem 3NET News Agent.",
+    privacy: "Datenschutz",
     statuses: {
       Launched: "Veröffentlicht",
       "Rolling out": "Wird ausgerollt",
@@ -331,6 +339,7 @@ ${esc(L.models)}: ${usedModels.length ? usedModels.map(esc).join(", ") : "–"}<
 ${esc(L.repo)}: ${repo}`
     : `${esc(L.sender)}<br>
 ${esc(L.repo)}: ${repo}`;
+  const signature = options.signature ? signatureBlock(options.signature, options, L, text, link, table) : "";
   const draftNote = reviewers
     ? `<tr><td bgcolor="${c.cardBackground}" style="background-color:${c.cardBackground};border-left:4px solid ${c.accent};padding:12px 16px;${text(14, c.mutedText)}">${esc(L.draftNote)}</td></tr>\n`
     : "";
@@ -355,13 +364,82 @@ ${esc(L.repo)}: ${repo}`;
 ${draftNote}${heading(L.m365)}
 ${items}
 ${maintenance}
-<tr><td style="padding:32px 0 0 0;${text(13, c.mutedText)}">${footer}</td></tr>
+${signature}<tr><td style="padding:32px 0 0 0;${text(13, c.mutedText)}">${footer}</td></tr>
 </table>
 </td></tr>
 </table>
 </body>
 </html>
 `;
+}
+
+/** Website shown without the scheme, e.g. "www.example.com". */
+function websiteLabel(url: string): string {
+  return url.replace(/^https:\/\//, "").replace(/\/$/, "");
+}
+
+/**
+ * Signature: small logo, company details with website and email as the only links (https: and
+ * mailto:, checked again here), an optional partner badge on a light tile, then legal lines and
+ * the privacy link in small muted text.
+ */
+function signatureBlock(
+  sig: Signature,
+  options: RenderOptions,
+  L: Labels,
+  text: (size: number, color: string, extra?: string) => string,
+  link: (url: string, label: string, size: number) => string,
+  table: (rows: string, attrs?: string) => string,
+): string {
+  const c = options.brand.colors;
+  const line = (html: string, style: string, padTop = 2) => `<tr><td style="padding:${padTop}px 0 0 0;${style}">${html}</td></tr>`;
+  const details = [
+    `<tr><td style="padding:0 0 8px 0;"><img src="${esc(options.logoSrc)}" width="78" height="32" alt="${esc(options.brand.name)}" style="display:block;border:0;text-decoration:none;"></td></tr>`,
+    line(esc(sig.companyName), text(15, c.text, "font-weight:bold;"), 0),
+  ];
+  if (sig.partnerLine) details.push(line(esc(sig.partnerLine), text(13, c.mutedText)));
+  if (sig.addressLine) details.push(line(esc(sig.addressLine), text(13, c.mutedText)));
+  if (sig.phone) details.push(line(esc(sig.phone), text(13, c.mutedText)));
+  if (sig.website) {
+    details.push(line(isHttpsUrl(sig.website) ? link(sig.website, websiteLabel(sig.website), 13) : esc(sig.website), text(13, c.mutedText)));
+  }
+  if (sig.email) {
+    details.push(line(isPlainEmail(sig.email) ? link(`mailto:${sig.email}`, sig.email, 13) : esc(sig.email), text(13, c.mutedText)));
+  }
+  const badge = options.partnerLogoSrc
+    ? `<td valign="top" align="right" width="112" style="width:112px;padding:0 0 0 12px;">` +
+      table(
+        `<tr><td bgcolor="${c.lightTile}" style="background-color:${c.lightTile};padding:8px;border-radius:6px;"><img src="${esc(options.partnerLogoSrc)}" width="84" height="84" alt="DATEV Solution Partner" style="display:block;border:0;text-decoration:none;"></td></tr>`,
+        `bgcolor="${c.lightTile}" style="background-color:${c.lightTile};border-radius:6px;"`,
+      ) +
+      `</td>`
+    : "";
+  const legal = sig.legalLines.map((l, i) => line(esc(l), text(12, c.mutedText), i === 0 ? 12 : 2));
+  if (sig.privacyUrl) {
+    const privacy = isHttpsUrl(sig.privacyUrl)
+      ? `<a href="${esc(sig.privacyUrl)}" style="${text(12, c.mutedText, "text-decoration:underline;")}">${esc(L.privacy)}</a>`
+      : esc(L.privacy);
+    legal.push(line(privacy, text(12, c.mutedText), legal.length ? 2 : 12));
+  }
+  // Space above, then a thin line, then the block; the badge sits level with the company details.
+  const block =
+    table(`<tr><td valign="top" style="padding:0;">${table(details.join(""))}</td>${badge}</tr>`) +
+    (legal.length ? table(legal.join("")) : "");
+  return (
+    `<tr><td style="padding:32px 0 0 0;">` +
+    table(`<tr><td style="padding:16px 0 0 0;border-top:1px solid ${c.divider};">${block}</td></tr>`) +
+    `</td></tr>
+`
+  );
+}
+
+function signatureText(sig: Signature, L: Labels): string[] {
+  const lines = [sig.companyName];
+  for (const value of [sig.partnerLine, sig.addressLine, sig.phone, sig.website, sig.email]) if (value) lines.push(value);
+  if (sig.legalLines.length || sig.privacyUrl) lines.push("");
+  lines.push(...sig.legalLines);
+  if (sig.privacyUrl) lines.push(`${L.privacy}: ${sig.privacyUrl}`);
+  return lines;
 }
 
 function renderTextPart(report: RunReport, options: RenderOptions, L: Labels, dateRange: string): string {
@@ -399,6 +477,7 @@ function renderTextPart(report: RunReport, options: RenderOptions, L: Labels, da
     else if (m.windows.length) lines.push(L.notAvailable(m.windows.length));
     lines.push("");
   }
+  if (options.signature) lines.push(...signatureText(options.signature, L), "");
   lines.push("--");
   if (reviewers) {
     lines.push(L.everyItem, `${L.run}: ${report.runId}`, `${L.models}: ${models(report).join(", ") || "–"}`);

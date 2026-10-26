@@ -149,6 +149,8 @@ Summaries use their own prompt and strict JSON answer (`summary`, `whyItMatters`
 
 **Never real mail:** every run writes `data/out/<runId>.newsletter-<audience>.eml`, a review copy `.html` and `.txt`. Mail is sent only if `NEWSLETTER_SMTP_HOST` is set, and only to `localhost`/`127.0.0.1` unless `NEWSLETTER_ALLOW_REMOTE=true`. We use [Mailpit](https://mailpit.axllent.org/) on `localhost:1025`.
 
+**Signature:** with `NEWSLETTER_SIGNATURE_PATH` both audiences end with a signature above the footer: small logo, company name, partner line, address, phone, website and email (the only links, `https:` and `mailto:`), legal lines and the privacy link in small muted text. `NEWSLETTER_PARTNER_LOGO_PATH` adds a partner badge as a second inline image, unchanged, on a light tile so that a badge made for light backgrounds stays readable. The repository contains only `config/signature.example.json` with placeholders; the real signature and the badge stay under `data/brand/`.
+
 **Render again without model calls:** `scripts/render-newsletter.ts` rebuilds the report from a run log and the run's snapshot and renders both audiences (`--send` sends them to the local catcher).
 
 **Language:** `NEWSLETTER_LANGUAGE=de` switches labels and summaries to German. The rating reasoning keeps `RATING_LANGUAGE`; for a fully German draft set `RATING_LANGUAGE=de` as well.
@@ -315,6 +317,8 @@ For live runs:
 | `NEWSLETTER_SMTP_PORT` | SMTP port | `1025` |
 | `NEWSLETTER_ALLOW_REMOTE` | Allow SMTP hosts other than localhost | `false` |
 | `BRAND_LOGO_PATH` | Logo embedded in the newsletter | `assets/3net-logo.png` |
+| `NEWSLETTER_SIGNATURE_PATH` | Signature JSON (format: `config/signature.example.json`) | – (no signature) |
+| `NEWSLETTER_PARTNER_LOGO_PATH` | Partner badge in the signature | – (no badge) |
 | `MEMORY` | "Already reported" store: `none` or `hmem` | `none` |
 | `MEMORY_DIR` | Folder of the H-MEM memory | `data/memory/hmem` |
 | `MEMORY_SIMILARITY_THRESHOLD` | Similarity at or above which an item counts as reported | `0.999` |
@@ -359,8 +363,8 @@ The same flow is covered by the two-run test and was run locally with the stub a
 
 ## Testing
 
-- **119 tests** in 13 files (`test/`), run with the Node.js test runner via `tsx`. No test uses the network: Zetaris and Nightshift calls go to injected fake `fetch` functions, and the H-MEM tests replace `fetch` with one that throws.
-- **Covered:** field mapping from a real (shortened) Zetaris response; HTML stripping and entity decoding; snapshot before mapping and the row-limit warning; every prefilter rule with boundaries (window edge, year change, unknown status, mixed products, `RATE_ITEM_IDS`, `VF-LIMIT`); strict answer parsing (text around the JSON, `</think>`, invalid values), score caps, retries on invalid answers, timeouts and HTTP 5xx, strict model check, receipt metadata without receipt content, prompt-injection markers; failed ratings never scored or reported; HTML escaping and links; H-MEM stages, persistence, ledger without sleep or dreaming, and the two-run proof; maintenance windows from a synthetic ICS file (folded lines, malformed `DTSTAMP`, update on a Saturday or Sunday with both same-day settings, year change, clock change, nothing upcoming); test-set validation and metrics; summaries (strict JSON, copy check, retry, only above the threshold, a failed summary does not stop the run); newsletter for reviewers and customers (escaping of script and img in all text, only http(s) links, no external resources, Outlook line height, CID logo in the `.eml`, SMTP host guard, empty states, plain-text part, English and German, availability line, WCAG AA contrast of the brand colors); report rebuilt from a run log equals the run's report; configuration parsing (empty values count as not set).
+- **126 tests** in 14 files (`test/`), run with the Node.js test runner via `tsx`. No test uses the network: Zetaris and Nightshift calls go to injected fake `fetch` functions, and the H-MEM tests replace `fetch` with one that throws.
+- **Covered:** field mapping from a real (shortened) Zetaris response; HTML stripping and entity decoding; snapshot before mapping and the row-limit warning; every prefilter rule with boundaries (window edge, year change, unknown status, mixed products, `RATE_ITEM_IDS`, `VF-LIMIT`); strict answer parsing (text around the JSON, `</think>`, invalid values), score caps, retries on invalid answers, timeouts and HTTP 5xx, strict model check, receipt metadata without receipt content, prompt-injection markers; failed ratings never scored or reported; HTML escaping and links; H-MEM stages, persistence, ledger without sleep or dreaming, and the two-run proof; maintenance windows from a synthetic ICS file (folded lines, malformed `DTSTAMP`, update on a Saturday or Sunday with both same-day settings, year change, clock change, nothing upcoming); test-set validation and metrics; summaries (strict JSON, copy check, retry, only above the threshold, a failed summary does not stop the run); newsletter for reviewers and customers (escaping of script and img in all text, only http(s) links, no external resources, Outlook line height, CID logo in the `.eml`, SMTP host guard, empty states, plain-text part, English and German, availability line, WCAG AA contrast of the brand colors); signature and partner badge (with and without, escaping, only `https:`/`mailto:` links, clear errors naming the variable, second CID attachment); report rebuilt from a run log equals the run's report; configuration parsing (empty values count as not set).
 - **Type check** (`npm run typecheck`) and **H-MEM conformance** (`npm run conformance`, 13/13).
 
 ## Security and data
@@ -393,6 +397,7 @@ No project code was written or committed before the build window opened on 22 Oc
 ```
 config/profile.m365.json  Relevance profile: audience, core products, out-of-scope products, rubric
 config/brand.json         Newsletter colors (dark theme from the logo), font stack, repository link
+config/signature.example.json  Newsletter signature format with placeholders (real file under data/brand/)
 docs/sponsor-statement.md Sponsor technology statement for the submission form (rule 6.4)
 scripts/                  Conformance runner wrapper, test-set measurement, offline/live probes
 src/domain/               Types, relevance profile and brand loaders, maintenance window rule

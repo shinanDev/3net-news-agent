@@ -7,7 +7,8 @@
     "mutedText": "#A7C6F1",
     "accent": "#1F9EFF",
     "onAccent": "#0B1A2B",
-    "divider": "#2A4260"
+    "divider": "#2A4260",
+    "lightTile": "#F5F7FA"
   },
   "fontStack": "Calibri, Carlito, Arial, Helvetica, sans-serif",
   "repoUrl": "https://github.com/shinanDev/3net-news-agent"

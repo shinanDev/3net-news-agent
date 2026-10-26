@@ -58,6 +58,8 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `NEWSLETTER_SMTP_PORT` | SMTP port, default `1025` (Mailpit) |
 | `NEWSLETTER_ALLOW_REMOTE` | `true` allows SMTP hosts other than localhost; default `false` (the prototype never sends real mail) |
 | `BRAND_LOGO_PATH` | logo embedded in the newsletter, default `assets/3net-logo.png` |
+| `NEWSLETTER_SIGNATURE_PATH` | JSON file with the newsletter signature (format: `config/signature.example.json`; keep the real file under `data/brand/`); empty: no signature |
+| `NEWSLETTER_PARTNER_LOGO_PATH` | partner badge image shown in the signature (keep under `data/brand/`, never in the repo); empty: no badge |
 | `MEMORY` | "already reported" store: `none` (default) or `hmem` |
 | `MEMORY_DIR` | folder of the H-MEM memory, default `data/memory/hmem` (use another folder for demos) |
 | `MEMORY_SIMILARITY_THRESHOLD` | similarity at or above which an item counts as reported, default `0.999` |
