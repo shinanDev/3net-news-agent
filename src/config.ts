@@ -57,14 +57,48 @@ export function stringEnv(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
 }
 
-export type OutputKind = "html" | "console";
+export const OUTPUT_KINDS = ["html", "console", "newsletter"] as const;
+export type OutputKind = (typeof OUTPUT_KINDS)[number];
 
-export function outputKind(): OutputKind {
-  const value = process.env["OUTPUT"]?.trim() || "html";
-  if (value !== "html" && value !== "console") {
-    throw new Error(`environment variable OUTPUT must be "html" or "console"`);
+/** OUTPUT: comma-separated list, e.g. "html,newsletter"; default "html". */
+export function outputKinds(): OutputKind[] {
+  const values = (process.env["OUTPUT"]?.trim() || "html").split(",").map((s) => s.trim()).filter(Boolean);
+  const bad = values.filter((v) => !(OUTPUT_KINDS as readonly string[]).includes(v));
+  if (!values.length || bad.length) {
+    throw new Error(`environment variable OUTPUT must be a comma-separated list of ${OUTPUT_KINDS.join(", ")}`);
   }
-  return value;
+  return [...new Set(values)] as OutputKind[];
+}
+
+export const DEFAULT_NEWSLETTER_FROM = "news-agent@localhost";
+export const DEFAULT_NEWSLETTER_TO = "review@localhost";
+export const DEFAULT_NEWSLETTER_SMTP_PORT = 1025;
+export const DEFAULT_BRAND_LOGO_PATH = "assets/3net-logo.png";
+
+/** NEWSLETTER_* and BRAND_LOGO_PATH. smtp is absent unless NEWSLETTER_SMTP_HOST is set. */
+export function newsletterConfig(): {
+  language: "en" | "de";
+  from: string;
+  to: string;
+  logoPath: string;
+  smtp?: { host: string; port: number; allowRemote: boolean };
+} {
+  const language = stringEnv("NEWSLETTER_LANGUAGE", "en");
+  if (language !== "en" && language !== "de") throw new Error(`environment variable NEWSLETTER_LANGUAGE must be "en" or "de"`);
+  const host = process.env["NEWSLETTER_SMTP_HOST"]?.trim();
+  return {
+    language,
+    from: stringEnv("NEWSLETTER_FROM", DEFAULT_NEWSLETTER_FROM),
+    to: stringEnv("NEWSLETTER_TO", DEFAULT_NEWSLETTER_TO),
+    logoPath: stringEnv("BRAND_LOGO_PATH", DEFAULT_BRAND_LOGO_PATH),
+    ...(host && {
+      smtp: {
+        host,
+        port: intEnv("NEWSLETTER_SMTP_PORT", DEFAULT_NEWSLETTER_SMTP_PORT),
+        allowRemote: boolEnv("NEWSLETTER_ALLOW_REMOTE", false),
+      },
+    }),
+  };
 }
 
 export type MemoryKind = "none" | "hmem";

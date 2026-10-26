@@ -1,0 +1,13 @@
+{
+  "name": "3NET",
+  "colors": {
+    "pageBackground": "#0B1A2B",
+    "cardBackground": "#10243A",
+    "text": "#E8F0F8",
+    "mutedText": "#A7C6F1",
+    "accent": "#1F9EFF",
+    "onAccent": "#0B1A2B"
+  },
+  "fontStack": "Calibri, Carlito, Arial, Helvetica, sans-serif",
+  "repoUrl": "https://github.com/shinanDev/3net-news-agent"
+}

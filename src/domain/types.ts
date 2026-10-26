@@ -79,10 +79,19 @@ export interface RatingMeta {
 
 export interface Summary {
   itemId: string;
+  /** What changes, 1-2 plain sentences for end users. */
   text: string;
+  /** What it means for the reader, 1-2 plain sentences; separate from the rating reasoning. */
+  whyItMatters?: string;
   model: string;
   summarisedAt: string;
+  meta?: SummaryMeta;
 }
+
+export type SummaryMeta = Pick<
+  RatingMeta,
+  "durationMs" | "attempts" | "responseModel" | "routedModel" | "receiptId" | "discardedChars" | "warnings"
+>;
 
 export type StageName = "ingest" | "prefilter" | "memory" | "rate" | "summarise" | "calendar" | "output";
 

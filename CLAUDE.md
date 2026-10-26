@@ -49,7 +49,14 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `RATING_PROFILE` | path to the relevance profile, default `config/profile.m365.json` |
 | `RATING_STRICT_MODEL` | `true` (default): a rating fails if the response model differs from `METERLESS_MODEL` |
 | `NIGHTSHIFT_TIMEOUT_MS` | timeout per Nightshift request in ms, default `120000` |
-| `OUTPUT` | run report: `html` (default, file in `data/out/`) or `console` |
+| `OUTPUT` | comma-separated outputs: `html` (default, run report in `data/out/`), `console`, `newsletter` (mail draft), e.g. `html,newsletter` |
+| `NEWSLETTER_LANGUAGE` | language of the newsletter labels and summaries: `en` (default) or `de` |
+| `NEWSLETTER_FROM` | sender address, default `news-agent@localhost` |
+| `NEWSLETTER_TO` | recipient address, default `review@localhost` |
+| `NEWSLETTER_SMTP_HOST` | SMTP host for sending; unset: no mail is sent, only files in `data/out/` |
+| `NEWSLETTER_SMTP_PORT` | SMTP port, default `1025` (Mailpit) |
+| `NEWSLETTER_ALLOW_REMOTE` | `true` allows SMTP hosts other than localhost; default `false` (the prototype never sends real mail) |
+| `BRAND_LOGO_PATH` | logo embedded in the newsletter, default `assets/3net-logo.png` |
 | `MEMORY` | "already reported" store: `none` (default) or `hmem` |
 | `MEMORY_DIR` | folder of the H-MEM memory, default `data/memory/hmem` (use another folder for demos) |
 | `MEMORY_SIMILARITY_THRESHOLD` | similarity at or above which an item counts as reported, default `0.999` |

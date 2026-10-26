@@ -1,11 +1,13 @@
 import type { FilterDecision, NewsItem, Rating, Summary } from "../domain/types.ts";
-import type { MaintenanceWindow } from "../domain/maintenance-window.ts";
+import type { MaintenanceRule, MaintenanceWindow } from "../domain/maintenance-window.ts";
 import type { MemoryFinding } from "./memory-store.ts";
 
 export interface ReportEntry {
   item: NewsItem;
   rating: Rating;
-  summary: Summary;
+  /** Absent if summarising failed; the item is still reported. */
+  summary?: Summary;
+  summaryError?: string;
 }
 
 export interface RatedItem {
@@ -27,6 +29,8 @@ export interface RunReport {
   scoreThreshold: number;
   /** Configured rating model; the model that answered is in each rating's meta. */
   ratingModel: string;
+  /** News window of the run (VF-NEU), ISO timestamps; absent when not configured. */
+  period?: { from: string; to: string };
   /** Rated at or above the threshold, highest score first. */
   entries: ReportEntry[];
   /** Rated below the threshold, highest score first. */
@@ -46,6 +50,8 @@ export interface RunReport {
   maintenance?: {
     /** The rule as plain text ("why this window"). */
     rule: string;
+    /** The rule itself, so outputs can phrase it in another language. */
+    ruleSpec: MaintenanceRule;
     lookaheadDays: number;
     windows: (MaintenanceWindow & { uid: string; summary: string })[];
     warnings: string[];

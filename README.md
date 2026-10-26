@@ -96,7 +96,7 @@ The pipeline is not an autonomous agent: the model only scores text. Each step t
 | `NewsSource` | `ZetarisNewsSource` (Microsoft 365 Roadmap via Zetaris) | `StubNewsSource` (`SOURCE=stub`) |
 | `MemoryStore` | `HmemMemoryStore` (H-MEM) | `InMemoryMemoryStore` (`MEMORY=none`) |
 | `RatingModel` | `NightshiftRatingModel` (Nemotron via Nightshift) | `StubRatingModel` (`RATER=stub`) |
-| `Output` | `HtmlFileOutput` (run report) | `ConsoleOutput` (`OUTPUT=console`) |
+| `Output` | `HtmlFileOutput` (run report), `NewsletterMailOutput` (mail draft, `OUTPUT=newsletter`) | `ConsoleOutput` (`OUTPUT=console`) |
 
 All stub adapters are the defaults, so `npm run run` without any configuration runs the full pipeline on three fictional items without Zetaris, Nightshift or H-MEM.
 
@@ -108,9 +108,9 @@ All stub adapters are the defaults, so `npm run run` without any configuration r
 | 2. Prefilter | Rules without AI, each with an id and a reason ([table](#prefilter-rules)) | Working |
 | 3. Already reported? | Exact URL first, then similarity in H-MEM memory | Working (opt-in, `MEMORY=hmem`) |
 | 4. Rate | Nemotron via Nightshift returns score components; the score is computed in code | Working |
-| 5. Summarise | Short summary per item above the threshold | Placeholder (returns the title, not shown in the report) |
+| 5. Summarise | Nemotron via Nightshift writes a summary and "why this matters" for readers, only for items above the threshold | Working |
 | 6. Output | HTML run report in `data/out/` | Working |
-| 6b. Newsletter | Newsletter draft as HTML mail to a local SMTP catcher | Planned |
+| 6b. Newsletter | Newsletter draft as HTML mail, written to `data/out/` and sent only to a local SMTP catcher ([details](#newsletter-draft)) | Working (opt-in, `OUTPUT=newsletter`) |
 | Second source | DATEV update calendar (ICS file): upcoming maintenance windows with the rule that explains them ([details](#maintenance-windows)) | Working (opt-in, `DATEV_MAINTENANCE_ICS_PATH`) |
 
 ### Maintenance windows
@@ -120,6 +120,22 @@ With `DATEV_MAINTENANCE_ICS_PATH` the agent also reads a calendar of software up
 This follows our practice: an update released on a Sunday (for example at 18:00) is installed in that evening's window. `DATEV_MAINTENANCE_SAME_DAY=false` gives it the following Sunday's window instead. Open edge case: a release on a Sunday after the window has started; ICS dates are usually date-only, so the release time is not known and the same evening's window is used.
 
 The run report lists the windows within the next `DATEV_MAINTENANCE_LOOKAHEAD_DAYS` days (default 30), each with the update date, the update and the window, and states the rule as plain text ("why this window"). The parser is tolerant: malformed `DTSTAMP` values (seen in practice: seven digits in the time part) produce one warning and are ignored, events without a start date are skipped with a warning.
+
+### Newsletter draft
+
+With `OUTPUT=newsletter` (or `OUTPUT=html,newsletter`) the run also produces the customer-facing draft: the 3NET logo, the date range of the run, a note that a person reviews the draft before sending, the Microsoft 365 items sorted by score, the maintenance windows with their rule, and a footer with the run id and the answering models. Each item shows:
+
+- the title as a link to the roadmap item, a short **summary** and **"Why this matters"** for end users, both written by the model in its own words;
+- the **score badge** with its components (e.g. `8 = 7 + 1`) and, smaller and labelled "Agent's reasoning (for reviewers)", the rating reasoning verbatim;
+- products, status and GA month.
+
+Summaries use their own prompt and strict JSON answer (`summary`, `whyItMatters`); the rating prompt is unchanged. The item is sent between the same markers as for the rating, and an answer that repeats 8 or more consecutive words of the item is rejected (one retry). A failed summary does not stop the run: the item appears without summary, and the run log has a warning.
+
+**Mail format:** table layout, 600 px, inline CSS and `bgcolor` only, no external resources, no scripts, no tracking, plus a plain-text part. The logo is embedded as a CID attachment. Dark theme with colors derived from the logo (`config/brand.json`); all text passes WCAG AA (4.5:1) on both background colors, checked by a test. Fonts: Calibri, Carlito, Arial, Helvetica, sans-serif.
+
+**Never real mail:** every run writes `data/out/<runId>.newsletter.eml`, a review copy `.newsletter.html` and `.newsletter.txt`. Mail is sent only if `NEWSLETTER_SMTP_HOST` is set, and only to `localhost`/`127.0.0.1` unless `NEWSLETTER_ALLOW_REMOTE=true`. We use [Mailpit](https://mailpit.axllent.org/) on `localhost:1025`.
+
+**Language:** `NEWSLETTER_LANGUAGE=de` switches labels and summaries to German. The rating reasoning keeps `RATING_LANGUAGE`; for a fully German draft set `RATING_LANGUAGE=de` as well.
 
 ## Prefilter rules
 
@@ -272,7 +288,14 @@ For live runs:
 | `RATING_PROFILE` | Relevance profile | `config/profile.m365.json` |
 | `RATING_STRICT_MODEL` | Reject ratings from another model than requested | `true` |
 | `NIGHTSHIFT_TIMEOUT_MS` | Timeout per Nightshift request | `120000` |
-| `OUTPUT` | `html` (file in `data/out/`) or `console` | `html` |
+| `OUTPUT` | Comma-separated: `html` (run report in `data/out/`), `console`, `newsletter` (mail draft) | `html` |
+| `NEWSLETTER_LANGUAGE` | Labels and summaries of the newsletter: `en` or `de` | `en` |
+| `NEWSLETTER_FROM` | Sender address | `news-agent@localhost` |
+| `NEWSLETTER_TO` | Recipient address | `review@localhost` |
+| `NEWSLETTER_SMTP_HOST` | SMTP host; unset: files only, no mail | – (off) |
+| `NEWSLETTER_SMTP_PORT` | SMTP port | `1025` |
+| `NEWSLETTER_ALLOW_REMOTE` | Allow SMTP hosts other than localhost | `false` |
+| `BRAND_LOGO_PATH` | Logo embedded in the newsletter | `assets/3net-logo.png` |
 | `MEMORY` | "Already reported" store: `none` or `hmem` | `none` |
 | `MEMORY_DIR` | Folder of the H-MEM memory | `data/memory/hmem` |
 | `MEMORY_SIMILARITY_THRESHOLD` | Similarity at or above which an item counts as reported | `0.999` |
@@ -316,8 +339,8 @@ The same flow is covered by the two-run test and was run locally with the stub a
 
 ## Testing
 
-- **91 tests** in 10 files (`test/`), run with the Node.js test runner via `tsx`. No test uses the network: Zetaris and Nightshift calls go to injected fake `fetch` functions, and the H-MEM tests replace `fetch` with one that throws.
-- **Covered:** field mapping from a real (shortened) Zetaris response; HTML stripping and entity decoding; snapshot before mapping and the row-limit warning; every prefilter rule with boundaries (window edge, year change, unknown status, mixed products, `RATE_ITEM_IDS`, `VF-LIMIT`); strict answer parsing (text around the JSON, `</think>`, invalid values), score caps, retries on invalid answers, timeouts and HTTP 5xx, strict model check, receipt metadata without receipt content, prompt-injection markers; failed ratings never scored or reported; HTML escaping and links; H-MEM stages, persistence, ledger without sleep or dreaming, and the two-run proof; maintenance windows from a synthetic ICS file (folded lines, malformed `DTSTAMP`, update on a Saturday or Sunday with both same-day settings, year change, clock change, nothing upcoming); test-set validation and metrics; configuration parsing (empty values count as not set).
+- **114 tests** in 12 files (`test/`), run with the Node.js test runner via `tsx`. No test uses the network: Zetaris and Nightshift calls go to injected fake `fetch` functions, and the H-MEM tests replace `fetch` with one that throws.
+- **Covered:** field mapping from a real (shortened) Zetaris response; HTML stripping and entity decoding; snapshot before mapping and the row-limit warning; every prefilter rule with boundaries (window edge, year change, unknown status, mixed products, `RATE_ITEM_IDS`, `VF-LIMIT`); strict answer parsing (text around the JSON, `</think>`, invalid values), score caps, retries on invalid answers, timeouts and HTTP 5xx, strict model check, receipt metadata without receipt content, prompt-injection markers; failed ratings never scored or reported; HTML escaping and links; H-MEM stages, persistence, ledger without sleep or dreaming, and the two-run proof; maintenance windows from a synthetic ICS file (folded lines, malformed `DTSTAMP`, update on a Saturday or Sunday with both same-day settings, year change, clock change, nothing upcoming); test-set validation and metrics; summaries (strict JSON, copy check, retry, only above the threshold, a failed summary does not stop the run); newsletter (escaping of script and img in all text, only http(s) links, no external resources, CID logo in the `.eml`, SMTP host guard, empty states, plain-text part, English and German, WCAG AA contrast of the brand colors); configuration parsing (empty values count as not set).
 - **Type check** (`npm run typecheck`) and **H-MEM conformance** (`npm run conformance`, 13/13).
 
 ## Security and data
@@ -331,8 +354,7 @@ The same flow is covered by the two-run test and was run locally with the stub a
 ## Limitations and next steps
 
 - **Routing and latency:** Nightshift answers with a routed Nemotron model and takes 25–80 s per rating; ratings run one after another. A full run (115 items on the snapshot) takes a long time; `RATE_MAX_ITEMS` and `RATE_ITEM_IDS` limit it.
-- **Summaries** are a placeholder; real summaries are planned.
-- **Newsletter output** (HTML mail to a local SMTP catcher) is planned; today the output is an internal run report.
+- **Newsletter:** a draft for review, sent only to a local SMTP catcher; there is no mailing list, no unsubscribe and no real delivery. The rating reasoning stays in `RATING_LANGUAGE`.
 - **Similarity** in H-MEM uses a hash embedder (see [limitation](#already-reported-h-mem-memory)).
 - **Calibration:** measured on two labelled rounds, see [Measurement](#measurement-against-labelled-test-sets); precision on small features in core products is the open issue.
 - **Zetaris:** `CREATE SCHEMASTORE VIEW` on the REST table fails with "Bad Request"; the agent sends the SELECT directly.
@@ -343,16 +365,19 @@ No project code was written or committed before the build window opened on 22 Oc
 
 - The Zetaris REST table follows the pattern of the recipes in [zetaris/getting-started](https://github.com/zetaris/getting-started) (Apache-2.0).
 - **H-MEM reference implementation** (vendored, unchanged) in [`vendor/hmem/`](vendor/hmem/README.md): from [Meterless/Meterless](https://github.com/Meterless/Meterless), path `engines/hmem/reference`, commit `1742dec56a66e58eef9dda2d2b865823758ca8cd` (latest on `main` when downloaded), downloaded 2026-10-23 via degit, version 0.1.0, Apache-2.0. Copied with its license, spec (`AGENTS.md`) and conformance suite; `npm run conformance` checks it. Our adapter around it is in `src/adapters/hmem/`.
+- **[nodemailer](https://nodemailer.com/)** 10.2.1 (MIT-0, no dependencies), pinned: builds the newsletter `.eml` (MIME, CID logo) and sends it via SMTP to the local catcher. `@types/nodemailer` 8.0.2 (MIT) for the type check.
 - **Labelled test sets** (declared, not in this repository): round 1 rated by a domain expert; round 2 rated by the team before the agent saw the items. They are used to calibrate the relevance scores.
 
 ### Repository layout
 
 ```
 config/profile.m365.json  Relevance profile: audience, core products, out-of-scope products, rubric
-scripts/                  Conformance runner wrapper and offline/live probes
-src/domain/               Types and the relevance profile loader
+config/brand.json         Newsletter colors (dark theme from the logo), font stack, repository link
+scripts/                  Conformance runner wrapper, test-set measurement, offline/live probes
+src/domain/               Types, relevance profile and brand loaders, maintenance window rule
 src/ports/                Interfaces: news source, memory store, rating model, output
-src/adapters/             Zetaris, Nightshift, H-MEM, HTML report, stubs
+src/adapters/             Zetaris, Nightshift, H-MEM, HTML report, newsletter mail, ICS calendar, stubs
+src/measure/              Test-set measurement (metrics and report)
 src/pipeline/             Prefilter rules and the pipeline run
 src/main.ts               Entry point (configuration from .env)
 test/                     Tests and a shortened real Zetaris response as fixture

@@ -1,7 +1,8 @@
 // Entry point. Wires the adapters and starts one pipeline run.
 // SOURCE=stub|zetaris selects the news source, RATER=stub|nightshift the rating model
 // (both default stub), OUTPUT=html|console the run report (default html, data/out/),
-// MEMORY=none|hmem the "already reported" store (default none). Items are only remembered
+// MEMORY=none|hmem the "already reported" store (default none). OUTPUT=newsletter (or e.g.
+// html,newsletter) adds the newsletter mail draft (NEWSLETTER_*). Items are only remembered
 // for later runs with MEMORY_MARK=true. DATEV_MAINTENANCE_ICS_PATH adds upcoming maintenance
 // windows to the report.
 
@@ -14,6 +15,9 @@ import {
 import { HmemMemoryStore } from "./adapters/hmem/hmem-memory-store.ts";
 import { IcsFileCalendar } from "./adapters/ics/ics-file-calendar.ts";
 import { HtmlFileOutput } from "./adapters/html/html-file-output.ts";
+import { MultiOutput } from "./adapters/multi-output.ts";
+import { NewsletterMailOutput } from "./adapters/newsletter/newsletter-mail-output.ts";
+import { loadBrand } from "./domain/brand.ts";
 import { NightshiftClient } from "./adapters/nightshift/nightshift-client.ts";
 import { NightshiftRatingModel } from "./adapters/nightshift/nightshift-rating-model.ts";
 import { loadProfile, type RelevanceProfile } from "./domain/profile.ts";
@@ -34,8 +38,9 @@ import {
   loadEnv,
   maintenanceConfig,
   memoryKind,
+  newsletterConfig,
   optionalIntEnv,
-  outputKind,
+  outputKinds,
   raterKind,
   ratioEnv,
   requireEnv,
@@ -46,6 +51,7 @@ import type { RatingModel } from "./ports/rating-model.ts";
 import { m365Rules, requiredFields } from "./pipeline/prefilter.ts";
 import { runPipeline } from "./pipeline/run.ts";
 import type { NewsSource } from "./ports/news-source.ts";
+import type { Output } from "./ports/output.ts";
 
 loadEnv();
 
@@ -73,6 +79,7 @@ function createModel(profile: RelevanceProfile): RatingModel {
     profile,
     language: stringEnv("RATING_LANGUAGE", DEFAULT_RATING_LANGUAGE),
     strictModel: boolEnv("RATING_STRICT_MODEL", true),
+    summaryLanguage: newsletterConfig().language,
   });
 }
 
@@ -80,18 +87,26 @@ function createModel(profile: RelevanceProfile): RatingModel {
 const profile = await loadProfile(stringEnv("RATING_PROFILE", DEFAULT_RATING_PROFILE));
 const source = createSource();
 const model = createModel(profile);
+const newDays = intEnv("PREFILTER_NEW_DAYS", DEFAULT_PREFILTER_NEW_DAYS);
 const rules = [
   requiredFields,
   ...m365Rules({
     now: new Date(),
-    newDays: intEnv("PREFILTER_NEW_DAYS", DEFAULT_PREFILTER_NEW_DAYS),
+    newDays,
     horizonMonths: intEnv("PREFILTER_HORIZON_MONTHS", DEFAULT_PREFILTER_HORIZON_MONTHS),
     outOfScopeProducts: profile.outOfScopeProducts,
   }),
 ];
 const maxItems = optionalIntEnv("RATE_MAX_ITEMS");
 const onlyIds = idListEnv("RATE_ITEM_IDS")?.map((id) => `m365:${id}`);
-const output = outputKind() === "html" ? new HtmlFileOutput() : new ConsoleOutput();
+const newsletterSettings = newsletterConfig();
+const outputs: Output[] = [];
+for (const kind of outputKinds()) {
+  if (kind === "html") outputs.push(new HtmlFileOutput());
+  else if (kind === "console") outputs.push(new ConsoleOutput());
+  else outputs.push(new NewsletterMailOutput({ ...newsletterSettings, brand: await loadBrand() }));
+}
+const output = outputs.length === 1 ? outputs[0]! : new MultiOutput(outputs);
 const memory =
   memoryKind() === "hmem"
     ? await HmemMemoryStore.create({
@@ -119,10 +134,16 @@ const { log, logPath } = await runPipeline(
     ...(maxItems !== undefined && { maxItems }),
     ...(onlyIds && { onlyIds }),
     ...(maintenance && { maintenance }),
+    periodDays: newDays,
   },
 );
 
 for (const s of log.stages) console.log(`${s.stage.padEnd(10)} ${s.inputCount} -> ${s.outputCount}`);
 if (source instanceof ZetarisNewsSource) console.log(`Snapshot: ${source.lastSnapshotPath}`);
 console.log(`Run log: ${logPath}`);
-if (output instanceof HtmlFileOutput) console.log(`Report: ${output.lastPath}`);
+for (const o of outputs) {
+  if (o instanceof HtmlFileOutput) console.log(`Report: ${o.lastPath}`);
+  if (o instanceof NewsletterMailOutput && o.last) {
+    console.log(`Newsletter: ${o.last.eml}, ${o.last.html}${o.last.sent ? ` (sent via ${newsletterSettings.smtp!.host}:${newsletterSettings.smtp!.port})` : " (not sent: NEWSLETTER_SMTP_HOST not set)"}`);
+  }
+}

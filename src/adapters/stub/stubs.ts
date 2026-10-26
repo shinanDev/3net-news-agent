@@ -48,7 +48,13 @@ export class StubRatingModel implements RatingModel {
     };
   }
   async summarise(item: NewsItem): Promise<Summary> {
-    return { itemId: item.id, text: item.title, model: this.model, summarisedAt: new Date().toISOString() };
+    return {
+      itemId: item.id,
+      text: item.title,
+      whyItMatters: "stub summary",
+      model: this.model,
+      summarisedAt: new Date().toISOString(),
+    };
   }
 }
 

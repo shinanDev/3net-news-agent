@@ -15,10 +15,14 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "@types/nodemailer": "8.0.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "allowScripts": {
     "esbuild@0.28.2": true
+  },
+  "dependencies": {
+    "nodemailer": "10.2.1"
   }
 }

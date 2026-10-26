@@ -1,13 +1,14 @@
 // RatingModel backed by Nightshift. The model returns components; the score is computed in code.
 // An invalid answer gets one more attempt; after that the item fails and gets no score.
+// Summaries use their own prompt and JSON answer ({ summary, whyItMatters }) with the same rules.
 
 import type { NewsItem, Rating, Summary } from "../../domain/types.ts";
 import type { RatingModel } from "../../ports/rating-model.ts";
-import { StubRatingModel } from "../stub/stubs.ts";
 import { NightshiftError, type NightshiftClient } from "./nightshift-client.ts";
 import type { RelevanceProfile } from "../../domain/profile.ts";
-import { buildMessages } from "./prompt.ts";
+import { buildMessages, summaryMessages } from "./prompt.ts";
 import { computeScore, parseAnswer } from "./rating-response.ts";
+import { parseSummary } from "./summary-response.ts";
 
 export class RatingFailedError extends Error {
   override name = "RatingFailedError";
@@ -31,13 +32,13 @@ export interface NightshiftRatingOptions {
    * Nightshift only pins the model for an app name registered in its console.
    */
   strictModel?: boolean;
+  /** Language of the newsletter summary (NEWSLETTER_LANGUAGE). Default: language. */
+  summaryLanguage?: string;
 }
 
 const MAX_ATTEMPTS = 2;
 
 export class NightshiftRatingModel implements RatingModel {
-  private readonly summariser = new StubRatingModel();
-
   constructor(
     private readonly client: NightshiftClient,
     private readonly options: NightshiftRatingOptions,
@@ -107,7 +108,58 @@ export class NightshiftRatingModel implements RatingModel {
     throw new RatingFailedError(`rating failed: invalid answer twice (${retry!.error})`, MAX_ATTEMPTS, durations);
   }
 
-  summarise(item: NewsItem): Promise<Summary> {
-    return this.summariser.summarise(item);
+  /** Called by the pipeline only for items at or above the threshold. Same retry and model check as rate(). */
+  async summarise(item: NewsItem): Promise<Summary> {
+    const language = this.options.summaryLanguage ?? this.options.language;
+    const sourceText = `${item.title}\n${item.summary}`;
+    const started = Date.now();
+    const durations: number[] = [];
+    let retry: { previousAnswer: string; error: string } | undefined;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const messages = summaryMessages(this.options.profile, language, item, retry);
+      let result;
+      try {
+        result = await this.client.chat(messages);
+      } catch (err) {
+        if (err instanceof NightshiftError) durations.push(...err.callDurationsMs);
+        const message = err instanceof Error ? err.message : String(err);
+        throw new RatingFailedError(`summary failed: ${message}`, attempt, durations);
+      }
+      durations.push(...result.callDurationsMs);
+
+      const warnings: string[] = [];
+      if (result.model !== this.model) {
+        const mismatch = `response model ${result.model ?? "(none)"} differs from configured ${this.model}`;
+        if (this.options.strictModel ?? true) {
+          throw new RatingFailedError(`summary failed: ${mismatch} (strict model check)`, attempt, durations);
+        }
+        warnings.push(mismatch);
+      }
+
+      const parsed = parseSummary(result.content, sourceText);
+      if (!parsed.ok) {
+        retry = { previousAnswer: result.content, error: parsed.error };
+        continue;
+      }
+      warnings.push(...parsed.value.warnings);
+      return {
+        itemId: item.id,
+        text: parsed.value.summary,
+        whyItMatters: parsed.value.whyItMatters,
+        model: this.model,
+        summarisedAt: new Date().toISOString(),
+        meta: {
+          durationMs: Date.now() - started,
+          attempts: attempt,
+          responseModel: result.model,
+          routedModel: result.receipt.routedModel,
+          receiptId: result.receipt.receiptId,
+          discardedChars: parsed.value.discardedChars,
+          warnings,
+        },
+      };
+    }
+    throw new RatingFailedError(`summary failed: invalid answer twice (${retry!.error})`, MAX_ATTEMPTS, durations);
   }
 }

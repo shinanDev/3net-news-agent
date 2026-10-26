@@ -179,7 +179,7 @@ function link(item: NewsItem): string {
   return isHttpUrl(item.url) ? `<a href="${esc(item.url)}">${title}</a>` : title;
 }
 
-function isHttpUrl(url: string): boolean {
+export function isHttpUrl(url: string): boolean {
   try {
     const u = new URL(url);
     return u.protocol === "https:" || u.protocol === "http:";

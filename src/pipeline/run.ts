@@ -31,6 +31,8 @@ export interface RunOptions {
   markReported?: boolean;
   /** Maintenance calendar: upcoming windows go into the report. Absent: the stage is skipped. */
   maintenance?: { calendar: MaintenanceCalendar; rule: MaintenanceRule; lookaheadDays: number };
+  /** News window in days (VF-NEU), shown as the run's date range. Absent: no range. */
+  periodDays?: number;
   warn?: (message: string) => void;
   /** Directory for run logs. Default: data/runs */
   runsDir?: string;
@@ -44,6 +46,7 @@ export interface RunResult {
 }
 
 export const DEFAULT_SCORE_THRESHOLD = 5;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}): Promise<RunResult> {
   const now = options.now ?? (() => new Date());
@@ -156,10 +159,28 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
       };
     });
 
+    // Only items at or above the threshold are summarised. A failed summary does not stop the
+    // run: the item is reported without summary.
     entries = await stage("summarise", rated.length, async () => {
       const result: ReportEntry[] = [];
-      for (const p of rated) result.push({ ...p, summary: await deps.model.summarise(p.item) });
-      return { result, outputCount: result.length, details: { summaries: result.map((e) => e.summary) } };
+      const failed: { itemId: string; error: string }[] = [];
+      for (const p of rated) {
+        try {
+          const summary = await deps.model.summarise(p.item);
+          summary.meta?.warnings.forEach((w) => warn(`${p.item.id}: summary: ${w}`));
+          result.push({ ...p, summary });
+        } catch (err) {
+          const error = err instanceof Error ? err.message : String(err);
+          warn(`${p.item.id}: ${error}`);
+          failed.push({ itemId: p.item.id, error });
+          result.push({ ...p, summaryError: error });
+        }
+      }
+      return {
+        result,
+        outputCount: result.length - failed.length,
+        details: { summaries: result.flatMap((e) => e.summary ?? []), failed },
+      };
     });
 
     // No network, no model: dates from a calendar file and a fixed rule.
@@ -174,7 +195,7 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
           .map((u) => ({ uid: u.uid, summary: u.summary, ...computeWindow(u.updateDate, rule) }))
           .filter((w) => isUpcoming(w, at, lookaheadDays))
           .sort((a, b) => a.startUtc.localeCompare(b.startUtc) || a.updateDate.localeCompare(b.updateDate));
-        const result = { rule: ruleText(rule), lookaheadDays, windows, warnings };
+        const result = { rule: ruleText(rule), ruleSpec: rule, lookaheadDays, windows, warnings };
         return {
           result,
           outputCount: windows.length,
@@ -190,6 +211,9 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
         source: deps.source.name,
         scoreThreshold,
         ratingModel: deps.model.model,
+        ...(options.periodDays !== undefined && {
+          period: { from: new Date(Date.parse(startedAt) - options.periodDays * DAY_MS).toISOString(), to: startedAt },
+        }),
         entries,
         belowThreshold,
         failed: failedRatings,
