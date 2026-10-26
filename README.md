@@ -123,17 +123,25 @@ The run report lists the windows within the next `DATEV_MAINTENANCE_LOOKAHEAD_DA
 
 ### Newsletter draft
 
-With `OUTPUT=newsletter` (or `OUTPUT=html,newsletter`) the run also produces the customer-facing draft: the 3NET logo, the date range of the run, a note that a person reviews the draft before sending, the Microsoft 365 items sorted by score, the maintenance windows with their rule, and a footer with the run id and the answering models. Each item shows:
+With `OUTPUT=newsletter` (or `OUTPUT=html,newsletter`) the run also produces the newsletter mail, for one of two audiences (`NEWSLETTER_AUDIENCE`):
 
-- the title as a link to the roadmap item, a short **summary** and **"Why this matters"** for end users, both written by the model in its own words;
-- the **score badge** with its components (e.g. `8 = 7 + 1`) and, smaller and labelled "Agent's reasoning (for reviewers)", the rating reasoning verbatim;
-- products, status and GA month.
+| | `reviewers` (default): review draft | `customers`: approved version |
+| --- | --- | --- |
+| Header | Logo, title, date range, note that a person reviews the draft before sending | Logo, title, date range |
+| Each item | Title as link, **summary** and **"Why this matters"**, score badge (`8/10` with `7 + 1` below), "Agent's reasoning (for reviewers)" verbatim, products, status and GA month, link to the roadmap | Title as link, **summary** and **"Why this matters"**, products, availability ("Preview: October 2026 · Available: January 2027"), link to the roadmap |
+| Maintenance windows | One line per window ("DATEV update on Thu 29 Oct: Sun 1 Nov, 19:00 – Mon 2 Nov, 07:00") and the rule | The same lines and "DATEV systems are not available during this window." |
+| Footer | Run id, answering models, "Every item carries its reason.", repository link | Sender line, repository link |
+| Subject | "… (draft)" | without "(draft)" |
+
+Summary and "Why this matters" are written by the model in its own words for end users; the agent's reasoning is the rating reasoning and is shown to reviewers only.
 
 Summaries use their own prompt and strict JSON answer (`summary`, `whyItMatters`); the rating prompt is unchanged. The item is sent between the same markers as for the rating, and an answer that repeats 8 or more consecutive words of the item is rejected (one retry). A failed summary does not stop the run: the item appears without summary, and the run log has a warning.
 
-**Mail format:** table layout, 600 px, inline CSS and `bgcolor` only, no external resources, no scripts, no tracking, plus a plain-text part. The logo is embedded as a CID attachment. Dark theme with colors derived from the logo (`config/brand.json`); all text passes WCAG AA (4.5:1) on both background colors, checked by a test. Fonts: Calibri, Carlito, Arial, Helvetica, sans-serif.
+**Mail format:** table layout, 600 px, inline CSS and `bgcolor` only, text in table cells (no `<p>` margins), `mso-line-height-rule` for Outlook for Windows, no external resources, no scripts, no tracking, plus a plain-text part. Checked with the HTML check of Mailpit. The logo is embedded as a CID attachment. Dark theme with colors derived from the logo (`config/brand.json`); all text passes WCAG AA (4.5:1) on both background colors, checked by a test. Fonts: Calibri, Carlito, Arial, Helvetica, sans-serif.
 
-**Never real mail:** every run writes `data/out/<runId>.newsletter.eml`, a review copy `.newsletter.html` and `.newsletter.txt`. Mail is sent only if `NEWSLETTER_SMTP_HOST` is set, and only to `localhost`/`127.0.0.1` unless `NEWSLETTER_ALLOW_REMOTE=true`. We use [Mailpit](https://mailpit.axllent.org/) on `localhost:1025`.
+**Never real mail:** every run writes `data/out/<runId>.newsletter-<audience>.eml`, a review copy `.html` and `.txt`. Mail is sent only if `NEWSLETTER_SMTP_HOST` is set, and only to `localhost`/`127.0.0.1` unless `NEWSLETTER_ALLOW_REMOTE=true`. We use [Mailpit](https://mailpit.axllent.org/) on `localhost:1025`.
+
+**Render again without model calls:** `scripts/render-newsletter.ts` rebuilds the report from a run log and the run's snapshot and renders both audiences (`--send` sends them to the local catcher).
 
 **Language:** `NEWSLETTER_LANGUAGE=de` switches labels and summaries to German. The rating reasoning keeps `RATING_LANGUAGE`; for a fully German draft set `RATING_LANGUAGE=de` as well.
 
@@ -290,6 +298,7 @@ For live runs:
 | `NIGHTSHIFT_TIMEOUT_MS` | Timeout per Nightshift request | `120000` |
 | `OUTPUT` | Comma-separated: `html` (run report in `data/out/`), `console`, `newsletter` (mail draft) | `html` |
 | `NEWSLETTER_LANGUAGE` | Labels and summaries of the newsletter: `en` or `de` | `en` |
+| `NEWSLETTER_AUDIENCE` | `reviewers` (draft with scores and reasoning) or `customers` (approved version) | `reviewers` |
 | `NEWSLETTER_FROM` | Sender address | `news-agent@localhost` |
 | `NEWSLETTER_TO` | Recipient address | `review@localhost` |
 | `NEWSLETTER_SMTP_HOST` | SMTP host; unset: files only, no mail | – (off) |
@@ -320,6 +329,7 @@ Empty values count as not set.
 | `npm run conformance` | H-MEM conformance suite against the vendored engine |
 | `npx tsx scripts/prefilter-report.ts data/snapshots/<file>.json --ids 573696` | Drops per rule for a saved snapshot, and the decision for selected ids (offline) |
 | `npx tsx scripts/measure-testsets.ts --dry-run` | Prefilter result per test item and the number of model calls (offline); without `--dry-run` it rates via Nightshift and writes JSON and HTML to `data/out/` (live) |
+| `npx tsx scripts/render-newsletter.ts --run data/runs/<runId>.json --snapshot data/snapshots/<file>.json --send` | Renders the newsletter for both audiences from a run log, without model calls; `--send` to the local SMTP catcher (offline except SMTP to localhost) |
 | `npx tsx scripts/zetaris-probe.ts` | One Zetaris query with 5 rows; prints the response shape (live) |
 | `npx tsx scripts/nightshift-probe.ts data/snapshots/<file>.json H5` | One Nightshift request variant; prints only model, duration and routing metadata (live) |
 
@@ -339,8 +349,8 @@ The same flow is covered by the two-run test and was run locally with the stub a
 
 ## Testing
 
-- **114 tests** in 12 files (`test/`), run with the Node.js test runner via `tsx`. No test uses the network: Zetaris and Nightshift calls go to injected fake `fetch` functions, and the H-MEM tests replace `fetch` with one that throws.
-- **Covered:** field mapping from a real (shortened) Zetaris response; HTML stripping and entity decoding; snapshot before mapping and the row-limit warning; every prefilter rule with boundaries (window edge, year change, unknown status, mixed products, `RATE_ITEM_IDS`, `VF-LIMIT`); strict answer parsing (text around the JSON, `</think>`, invalid values), score caps, retries on invalid answers, timeouts and HTTP 5xx, strict model check, receipt metadata without receipt content, prompt-injection markers; failed ratings never scored or reported; HTML escaping and links; H-MEM stages, persistence, ledger without sleep or dreaming, and the two-run proof; maintenance windows from a synthetic ICS file (folded lines, malformed `DTSTAMP`, update on a Saturday or Sunday with both same-day settings, year change, clock change, nothing upcoming); test-set validation and metrics; summaries (strict JSON, copy check, retry, only above the threshold, a failed summary does not stop the run); newsletter (escaping of script and img in all text, only http(s) links, no external resources, CID logo in the `.eml`, SMTP host guard, empty states, plain-text part, English and German, WCAG AA contrast of the brand colors); configuration parsing (empty values count as not set).
+- **119 tests** in 13 files (`test/`), run with the Node.js test runner via `tsx`. No test uses the network: Zetaris and Nightshift calls go to injected fake `fetch` functions, and the H-MEM tests replace `fetch` with one that throws.
+- **Covered:** field mapping from a real (shortened) Zetaris response; HTML stripping and entity decoding; snapshot before mapping and the row-limit warning; every prefilter rule with boundaries (window edge, year change, unknown status, mixed products, `RATE_ITEM_IDS`, `VF-LIMIT`); strict answer parsing (text around the JSON, `</think>`, invalid values), score caps, retries on invalid answers, timeouts and HTTP 5xx, strict model check, receipt metadata without receipt content, prompt-injection markers; failed ratings never scored or reported; HTML escaping and links; H-MEM stages, persistence, ledger without sleep or dreaming, and the two-run proof; maintenance windows from a synthetic ICS file (folded lines, malformed `DTSTAMP`, update on a Saturday or Sunday with both same-day settings, year change, clock change, nothing upcoming); test-set validation and metrics; summaries (strict JSON, copy check, retry, only above the threshold, a failed summary does not stop the run); newsletter for reviewers and customers (escaping of script and img in all text, only http(s) links, no external resources, Outlook line height, CID logo in the `.eml`, SMTP host guard, empty states, plain-text part, English and German, availability line, WCAG AA contrast of the brand colors); report rebuilt from a run log equals the run's report; configuration parsing (empty values count as not set).
 - **Type check** (`npm run typecheck`) and **H-MEM conformance** (`npm run conformance`, 13/13).
 
 ## Security and data

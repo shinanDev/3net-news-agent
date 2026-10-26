@@ -1,5 +1,6 @@
-// Newsletter draft as a mail. Always writes data/out/<runId>.newsletter.eml (the exact mail),
-// .newsletter.html (review copy with the logo as data URI) and .newsletter.txt.
+// Newsletter as a mail, for reviewers (draft) or customers (approved version). Always writes
+// data/out/<runId>.newsletter-<audience>.eml (the exact mail), .html (review copy with the logo
+// as data URI) and .txt.
 // Sends via SMTP only when a host is configured, and only to localhost unless remote hosts are
 // explicitly allowed: this prototype must never send real mail. No AUTH, no TLS (local catcher).
 
@@ -8,7 +9,7 @@ import { join } from "node:path";
 import nodemailer from "nodemailer";
 import type { Brand } from "../../domain/brand.ts";
 import type { Output, RunReport } from "../../ports/output.ts";
-import { renderNewsletter, type NewsletterLanguage } from "./render.ts";
+import { renderNewsletter, type NewsletterAudience, type NewsletterLanguage } from "./render.ts";
 
 export interface SmtpSettings {
   host: string;
@@ -22,6 +23,7 @@ export type SendRaw = (smtp: SmtpSettings, envelope: { from: string; to: string 
 
 export interface NewsletterOptions {
   language: NewsletterLanguage;
+  audience: NewsletterAudience;
   brand: Brand;
   from: string;
   to: string;
@@ -67,7 +69,12 @@ export class NewsletterMailOutput implements Output {
     if (o.smtp) checkSmtpHost(o.smtp.host, o.smtp.allowRemote);
 
     const logo = await readFile(o.logoPath);
-    const renderOptions = { language: o.language, brand: o.brand, ...(o.timeZone && { timeZone: o.timeZone }) };
+    const renderOptions = {
+      language: o.language,
+      audience: o.audience,
+      brand: o.brand,
+      ...(o.timeZone && { timeZone: o.timeZone }),
+    };
     const mail = renderNewsletter(report, { ...renderOptions, logoSrc: `cid:${LOGO_CID}` });
     const review = renderNewsletter(report, { ...renderOptions, logoSrc: `data:image/png;base64,${logo.toString("base64")}` });
 
@@ -84,7 +91,7 @@ export class NewsletterMailOutput implements Output {
 
     const dir = o.outDir ?? join("data", "out");
     await mkdir(dir, { recursive: true });
-    const base = join(dir, `${report.runId}.newsletter`);
+    const base = join(dir, `${report.runId}.newsletter-${o.audience}`);
     const paths = { eml: `${base}.eml`, html: `${base}.html`, text: `${base}.txt` };
     await writeFile(paths.eml, raw);
     await writeFile(paths.html, review.html, "utf8");

@@ -204,6 +204,10 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
       });
     }
 
+    const period =
+      options.periodDays === undefined
+        ? undefined
+        : { from: new Date(Date.parse(startedAt) - options.periodDays * DAY_MS).toISOString(), to: startedAt };
     await stage("output", entries.length, async () => {
       await deps.output.render({
         runId,
@@ -211,9 +215,7 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
         source: deps.source.name,
         scoreThreshold,
         ratingModel: deps.model.model,
-        ...(options.periodDays !== undefined && {
-          period: { from: new Date(Date.parse(startedAt) - options.periodDays * DAY_MS).toISOString(), to: startedAt },
-        }),
+        ...(period && { period }),
         entries,
         belowThreshold,
         failed: failedRatings,
@@ -227,7 +229,8 @@ export async function runPipeline(deps: PipelineDeps, options: RunOptions = {}):
       return {
         result: undefined,
         outputCount: entries.length,
-        details: { marked, reported: marked ? entries.map((e) => e.item.id) : [] },
+        // The period is logged so a newsletter can be re-rendered from the run log.
+        details: { marked, reported: marked ? entries.map((e) => e.item.id) : [], ...(period && { period }) },
       };
     });
   } catch (err) {

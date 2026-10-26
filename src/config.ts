@@ -75,9 +75,10 @@ export const DEFAULT_NEWSLETTER_TO = "review@localhost";
 export const DEFAULT_NEWSLETTER_SMTP_PORT = 1025;
 export const DEFAULT_BRAND_LOGO_PATH = "assets/3net-logo.png";
 
-/** NEWSLETTER_* and BRAND_LOGO_PATH. smtp is absent unless NEWSLETTER_SMTP_HOST is set. */
+/** NEWSLETTER_* and BRAND_LOGO_PATH; audience "reviewers" (draft, default) or "customers" (approved). smtp is absent unless NEWSLETTER_SMTP_HOST is set. */
 export function newsletterConfig(): {
   language: "en" | "de";
+  audience: "reviewers" | "customers";
   from: string;
   to: string;
   logoPath: string;
@@ -85,9 +86,14 @@ export function newsletterConfig(): {
 } {
   const language = stringEnv("NEWSLETTER_LANGUAGE", "en");
   if (language !== "en" && language !== "de") throw new Error(`environment variable NEWSLETTER_LANGUAGE must be "en" or "de"`);
+  const audience = stringEnv("NEWSLETTER_AUDIENCE", "reviewers");
+  if (audience !== "reviewers" && audience !== "customers") {
+    throw new Error(`environment variable NEWSLETTER_AUDIENCE must be "reviewers" or "customers"`);
+  }
   const host = process.env["NEWSLETTER_SMTP_HOST"]?.trim();
   return {
     language,
+    audience,
     from: stringEnv("NEWSLETTER_FROM", DEFAULT_NEWSLETTER_FROM),
     to: stringEnv("NEWSLETTER_TO", DEFAULT_NEWSLETTER_TO),
     logoPath: stringEnv("BRAND_LOGO_PATH", DEFAULT_BRAND_LOGO_PATH),

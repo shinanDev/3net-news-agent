@@ -15,12 +15,14 @@ export interface Brand {
     accent: string;
     /** Text on the accent color (score badge). */
     onAccent: string;
+    /** Thin decorative lines; not used for text. */
+    divider: string;
   };
   fontStack: string;
   repoUrl: string;
 }
 
-const COLOR_KEYS = ["pageBackground", "cardBackground", "text", "mutedText", "accent", "onAccent"] as const;
+const COLOR_KEYS = ["pageBackground", "cardBackground", "text", "mutedText", "accent", "onAccent", "divider"] as const;
 
 export async function loadBrand(path = DEFAULT_BRAND_PATH): Promise<Brand> {
   const b = JSON.parse(await readFile(path, "utf8")) as Partial<Brand>;

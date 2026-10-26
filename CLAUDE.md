@@ -51,6 +51,7 @@ Build window: 22–27 October 2026. Scope is a working prototype, not a product.
 | `NIGHTSHIFT_TIMEOUT_MS` | timeout per Nightshift request in ms, default `120000` |
 | `OUTPUT` | comma-separated outputs: `html` (default, run report in `data/out/`), `console`, `newsletter` (mail draft), e.g. `html,newsletter` |
 | `NEWSLETTER_LANGUAGE` | language of the newsletter labels and summaries: `en` (default) or `de` |
+| `NEWSLETTER_AUDIENCE` | `reviewers` (default: review draft with scores and reasoning) or `customers` (approved version without draft banner, scores, reasoning or run details) |
 | `NEWSLETTER_FROM` | sender address, default `news-agent@localhost` |
 | `NEWSLETTER_TO` | recipient address, default `review@localhost` |
 | `NEWSLETTER_SMTP_HOST` | SMTP host for sending; unset: no mail is sent, only files in `data/out/` |
