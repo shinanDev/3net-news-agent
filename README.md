@@ -89,7 +89,7 @@ flowchart LR
     OUT -.->|"MEMORY_MARK=true"| HM
 ```
 
-The pipeline is not an autonomous agent: the model only scores text. Each step talks to the outside world through a small interface (ports and adapters), so every sponsor component can be replaced:
+The pipeline is not an autonomous agent: the model only scores and summarises text. Each step talks to the outside world through a small interface (ports and adapters), so every sponsor component can be replaced:
 
 | Port | Adapters in the repo | Without sponsor components |
 | --- | --- | --- |
@@ -182,7 +182,7 @@ Core products in the profile: Copilot, Teams, SharePoint, Outlook, OneDrive, Exc
 
 ## Model and routing transparency
 
-The agent requests `nvidia/nemotron-3.5-lightning-30b-a3b`. Nightshift may answer with a different Nemotron model: its response metadata shows that a concrete model id is handled in `meterless/auto` mode, where a learned router races candidates and picks one. In our runs on 2026-10-23 the answers came from `nvidia/nemotron-3-ultra-550b-a55b` and `nvidia/nemotron-3.5-super-vl-120b-a12b`.
+The agent requests `nvidia/nemotron-3.5-lightning-30b-a3b`. Nightshift may answer with a different Nemotron model: its response metadata shows that a concrete model id is handled in `meterless/auto` mode, where a learned router races candidates and picks one. In our runs most answers came from `nvidia/nemotron-3-ultra-550b-a55b`, some from `nvidia/nemotron-3.5-super-vl-120b-a12b`, and rarely from the requested model (1 of 21 ratings in the [measurement](#measurement-against-labelled-test-sets)).
 
 The agent therefore logs, per rating, the model that answered (`meterless.routed_model`), the latency reported by Meterless and the receipt id. `RATING_STRICT_MODEL=true` (the default) rejects any rating from another model than the requested one; development runs use `false`. Observed latency: 25–80 s per rating. `scripts/nightshift-probe.ts` documents the request variants we tested (CLAUDE.md, "Known issue: model routing").
 
@@ -250,12 +250,14 @@ The run report lists every item that was skipped as already reported, with the s
 
 | Technology | What it does here | How we prove it |
 | --- | --- | --- |
-| **Zetaris** (local, Docker) | Registers the public Microsoft 365 Roadmap API as a Lightning REST table (`zetaris/m365_roadmap.sql`); the agent queries it with SQL over the Zetaris REST API | Each run saves the raw Zetaris response to `data/snapshots/`; `scripts/zetaris-probe.ts` shows the response shape |
-| **Meterless Nightshift** | OpenAI-compatible runtime for all model calls | Per rating: answering model, latency and Meterless receipt id in the run log and the report |
-| **NVIDIA Nemotron** | Rates every item that passes the prefilter | Answering Nemotron model logged per rating (via Nightshift) |
-| **Meterless H-MEM** | Memory of items reported in earlier runs | Conformance 13/13 (`npm run conformance`) and the two-run test |
+| **Zetaris** (local, Docker) | Read and query layer: registers the public Microsoft 365 Roadmap API as a Lightning REST table (`zetaris/m365_roadmap.sql`); the agent queries it with SQL over the Zetaris REST API and writes nothing back | Each run saves the raw Zetaris response to `data/snapshots/` before mapping, so runs and the test-set measurement are reproducible; `scripts/zetaris-probe.ts` shows the response shape |
+| **Meterless Nightshift** | OpenAI-compatible runtime for all model calls | Per rating: answering model, latency, Meterless receipt id and signature in the run log; optional strict mode rejects ratings from another model |
+| **NVIDIA Nemotron** (via Nightshift) | Rates every item that passes the prefilter and writes the short reader summaries | Answering Nemotron model logged per rating and per summary |
+| **Meterless H-MEM** | Memory of items reported in earlier runs: exact URL first, then H-MEM similarity with a strict threshold; reference vendored unchanged (Apache-2.0, commit `1742dec`) | Conformance 13/13 (`npm run conformance`) and the two-run test; Meterless confirmed in the HackOS "Help Meterless" channel that this use meets the engine requirement |
 
-**AI tools used for development:** Claude Code (Opus 5.5) as coding assistant. Per the organizer announcement of 2026-10-22, Cursor is optional.
+**AI tools used for development:** Claude Code (Anthropic, Opus 5.5) as coding assistant. Cursor was installed and set up before the build window; following the organizer announcement of 2026-10-22 that Cursor is optional, we developed with Claude Code.
+
+The full statement for the submission form (rule 6.4) is in [`docs/sponsor-statement.md`](docs/sponsor-statement.md).
 
 ## Quick start
 
@@ -383,6 +385,7 @@ No project code was written or committed before the build window opened on 22 Oc
 ```
 config/profile.m365.json  Relevance profile: audience, core products, out-of-scope products, rubric
 config/brand.json         Newsletter colors (dark theme from the logo), font stack, repository link
+docs/sponsor-statement.md Sponsor technology statement for the submission form (rule 6.4)
 scripts/                  Conformance runner wrapper, test-set measurement, offline/live probes
 src/domain/               Types, relevance profile and brand loaders, maintenance window rule
 src/ports/                Interfaces: news source, memory store, rating model, output
