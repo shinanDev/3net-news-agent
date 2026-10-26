@@ -13,9 +13,11 @@ Newest entries first. One entry per working day: what was done, what was decided
 - Live runs to Mailpit with 573696 (score 8 = 7 + 1, summarised) and 577819 (score 0, not summarised); the second run with the DATEV calendar showed the windows on 1 Nov and 29 Nov.
 - `scripts/render-newsletter.ts` renders both audiences again from a run log and its snapshot without model calls; used to send both versions to Mailpit.
 - Mailpit HTML check: supported 93.5 % before, 95.3 % (reviewers) and 94.6 % (customers) after the fixes for Outlook and Gmail.
-- Screenshots of both newsletter versions in Mailpit (team).
+- Screenshots of both newsletter versions in Mailpit (team), shown in the README (customer version near the top, review draft in the newsletter section); replaced after the signature was added, alt texts updated.
+- Newsletter signature (`NEWSLETTER_SIGNATURE_PATH`) above the footer in both audiences: small logo, company details, website and email as the only links (`https:` and `mailto:`), legal lines and privacy link in small muted text. DATEV Solution Partner badge (`NEWSLETTER_PARTNER_LOGO_PATH`) next to it as a second inline image, unchanged, on a light tile. Real files under `data/brand/`; the repository has only `config/signature.example.json` with placeholders. Both audiences re-rendered from the last run to Mailpit; HTML check 95.1 % (reviewers) and 94.7 % (customers).
+- Sponsor technology statement for the submission form (rule 6.4) in `docs/sponsor-statement.md`; the README section "Sponsor technology and AI tools" aligned with it, phase table updated.
 - Run without sponsor components: a run with stub source and stub rater produced run report and newsletter end to end (no Zetaris, Nightshift or H-MEM). The README states that `npm run run` without any configuration uses the stub adapters (section "Architecture").
-- 119 tests green, type check clean.
+- 126 tests green, type check clean.
 
 **Decided**
 - Measurement: failed ratings count as "not relevant"; ratings use the rating date as "today".
@@ -27,6 +29,9 @@ Newest entries first. One entry per working day: what was done, what was decided
 - `nodemailer` 10.2.1 (MIT-0) and `@types/nodemailer` 8.0.2, pinned to exact versions.
 - The roadmap link is shown in both audiences.
 - `.env.example` is maintained by the team.
+- Signature: phone as plain text; unknown fields are rejected, so no event or marketing banners can be added. The partner badge is shown only together with a signature.
+- Screenshots with the real signature and the partner badge may be in the public repository (the company posted the same on its LinkedIn account).
+- Feature freeze after the signature commit; only docs from now on.
 
 **Learned**
 - All five false positives follow one pattern: a small feature in a core product gets `baseValue` 7, plus `actionBonus` 1 for "a concrete benefit once available"; the reasoning is near-identical across items.
@@ -42,12 +47,13 @@ Newest entries first. One entry per working day: what was done, what was decided
 - Rubric change for small features in core products, measured on a new labelled round.
 - Nightshift: check in the console whether the app policy can pin a model; check whether Meterless serves cached answers.
 - Repository license.
-- Sponsor tech and tools statement for the submission (rule 6.4); check the Rules channel for changes to 5.1/6.4.
+- ~~Sponsor tech and tools statement for the submission (rule 6.4).~~ Done (`docs/sponsor-statement.md`).
+- Check the Rules channel for changes to 5.1/6.4.
 - Ask Zetaris mentors about the view error.
 - Maintenance windows, edge case: a release on a Sunday after the window has started.
 - Record the demo video (storyboard ready).
-- Finish the slide deck (update the test count).
-- Optional: DATEV partner logo in the newsletter, only with an official file and permission.
+- Finish the slide deck (update the test count to 126).
+- ~~Optional: DATEV partner logo in the newsletter, only with an official file and permission.~~ Done (badge in the signature, file under `data/brand/`).
 - Customer version: drop the source-code link for the internal version.
 - Internal submission and status to the CTO.
 - Build window ends on 2026-10-27: submission.
