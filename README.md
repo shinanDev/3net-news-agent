@@ -37,9 +37,9 @@ The pipeline is built to grow: new sources and audiences are added as a source a
 
 | Phase | Goal |
 | --- | --- |
-| Hackathon prototype (now) | Pipeline with explainable decisions and an internal run report |
+| Hackathon prototype (now) | Pipeline with explainable decisions, an internal run report and a newsletter draft for review |
 | Pilot (planned) | Weekly runs, review of the report by the team, calibration against labelled test sets |
-| Customer newsletter (planned) | Newsletter draft built from the reviewed items |
+| Customer newsletter (planned) | Newsletter sent to customers after review |
 
 <img src="assets/newsletter-customer.png" alt="Customer version of the newsletter in Mailpit: the item SharePoint Copilot Search with summary, why this matters, products and availability (preview October 2026, available January 2027), and two DATEV maintenance windows with the note that DATEV systems are not available" width="600">
 
