@@ -41,7 +41,7 @@ The pipeline is built to grow: new sources and audiences are added as a source a
 | Pilot (planned) | Weekly runs, review of the report by the team, calibration against labelled test sets |
 | Customer newsletter (planned) | Newsletter sent to customers after review |
 
-<img src="assets/newsletter-customer.png" alt="Customer version of the newsletter in Mailpit: the item SharePoint Copilot Search with summary, why this matters, products and availability (preview October 2026, available January 2027), and two DATEV maintenance windows with the note that DATEV systems are not available" width="600">
+<img src="assets/newsletter-customer.png" alt="Customer version of the newsletter in Mailpit: the item SharePoint Copilot Search with summary, why this matters, products and availability (preview October 2026, available January 2027), two DATEV maintenance windows with the note that DATEV systems are not available, and the 3NET signature with company details, legal lines and the DATEV Solution Partner badge" width="600">
 
 *Customer version of the newsletter: summary, why it matters, availability, DATEV maintenance windows.*
 
@@ -139,7 +139,7 @@ With `OUTPUT=newsletter` (or `OUTPUT=html,newsletter`) the run also produces the
 
 Summary and "Why this matters" are written by the model in its own words for end users; the agent's reasoning is the rating reasoning and is shown to reviewers only.
 
-<img src="assets/newsletter-review.png" alt="Review draft of the newsletter in Mailpit: draft note, the item SharePoint Copilot Search with summary and why this matters, score badge 8/10 with components 7 + 1 and the agent's reasoning for reviewers, maintenance windows with the rule, and a footer with run id and answering model" width="600">
+<img src="assets/newsletter-review.png" alt="Review draft of the newsletter in Mailpit: draft note, the item SharePoint Copilot Search with summary and why this matters, score badge 8/10 with components 7 + 1 and the agent's reasoning for reviewers, maintenance windows with the rule, the 3NET signature with the DATEV Solution Partner badge, and a footer with run id and answering model" width="600">
 
 *Review draft for the newsletter team: score 8/10 (7 + 1) and the agent's reasoning.*
 
