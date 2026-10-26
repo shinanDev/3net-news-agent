@@ -23,6 +23,13 @@ export const ROUND_LABELS: Record<number, string> = {
   2: "holdout set",
 };
 
+/** Limits of the measurement, shown in the report. */
+export const VALIDITY_NOTES: string[] = [
+  "Round 1 is the calibration set: the prefilter rules were derived from it, so its prefilter result is not independent.",
+  "VF-HORIZONT counts whole months inclusive; this was decided on 2026-10-23, after the holdout case 573696 (GA 2027-01) was known, so the holdout result for that rule is not fully independent.",
+  "The snapshot shows the roadmap at its own date, not at the rating date; items modified after the rating date are listed below.",
+];
+
 export function roundLabel(round: number): string {
   return ROUND_LABELS[round] ?? `round ${round}`;
 }
@@ -154,6 +161,7 @@ export interface MeasureReport {
   scoreThreshold: number;
   horizons: number[];
   testsetFiles: string[];
+  validityNotes: string[];
   groups: Group[];
   notInSnapshot: TestItem[];
   failedRatings: { roadmapId: string; ratedOn: string; error: string; attempts: number }[];
@@ -221,6 +229,7 @@ export function buildReport(
 
   return {
     ...meta,
+    validityNotes: VALIDITY_NOTES,
     groups,
     notInSnapshot: results.filter((r) => !r.inSnapshot).map((r) => r.test),
     failedRatings,
@@ -269,6 +278,9 @@ th, td { border: 1px solid #999; padding: 0.25rem 0.5rem; text-align: left; vert
 <li>Agent says "relevant": passes the prefilter (rating date as reference, VF-NEU and VF-LIMIT off) and score &gt;= ${r.scoreThreshold}. Failed ratings count as "not relevant".</li>
 <li>Answering models: ${models.length ? models.map(([m, n]) => `${esc(m)} (${n})`).join(", ") : "none"}</li>
 </ul>
+
+<h2>Validity notes</h2>
+${list(r.validityNotes)}
 
 <h2>Metrics</h2>
 <table>

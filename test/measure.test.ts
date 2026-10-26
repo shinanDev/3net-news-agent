@@ -213,6 +213,9 @@ test("renderMeasureHtml escapes model and source text", () => {
   assert.ok(html.includes("A &amp; B"));
   assert.ok(html.includes("holdout set") === false);
   assert.ok(html.includes("calibration set"));
+  assert.ok(html.includes("<h2>Validity notes</h2>"));
+  assert.ok(html.includes("VF-HORIZONT counts whole months inclusive; this was decided on 2026-10-23"));
+  assert.deepEqual(report.validityNotes.length, 3);
 });
 
 test("ratingKey separates rating dates", () => {
