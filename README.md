@@ -41,6 +41,10 @@ The pipeline is built to grow: new sources and audiences are added as a source a
 | Pilot (planned) | Weekly runs, review of the report by the team, calibration against labelled test sets |
 | Customer newsletter (planned) | Newsletter draft built from the reviewed items |
 
+<img src="assets/newsletter-customer.png" alt="Customer version of the newsletter in Mailpit: the item SharePoint Copilot Search with summary, why this matters, products and availability (preview October 2026, available January 2027), and two DATEV maintenance windows with the note that DATEV systems are not available" width="600">
+
+*Customer version of the newsletter: summary, why it matters, availability, DATEV maintenance windows.*
+
 ## What "explain why" means here
 
 Every decision in a run is recorded with its reason, in the run log (`data/runs/<run>.json`) and in the HTML run report (`data/out/<run>.html`):
@@ -134,6 +138,10 @@ With `OUTPUT=newsletter` (or `OUTPUT=html,newsletter`) the run also produces the
 | Subject | "… (draft)" | without "(draft)" |
 
 Summary and "Why this matters" are written by the model in its own words for end users; the agent's reasoning is the rating reasoning and is shown to reviewers only.
+
+<img src="assets/newsletter-review.png" alt="Review draft of the newsletter in Mailpit: draft note, the item SharePoint Copilot Search with summary and why this matters, score badge 8/10 with components 7 + 1 and the agent's reasoning for reviewers, maintenance windows with the rule, and a footer with run id and answering model" width="600">
+
+*Review draft for the newsletter team: score 8/10 (7 + 1) and the agent's reasoning.*
 
 Summaries use their own prompt and strict JSON answer (`summary`, `whyItMatters`); the rating prompt is unchanged. The item is sent between the same markers as for the rating, and an answer that repeats 8 or more consecutive words of the item is rejected (one retry). A failed summary does not stop the run: the item appears without summary, and the run log has a warning.
 
