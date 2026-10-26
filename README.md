@@ -17,14 +17,15 @@ Built for the **Open Agent Hackathon 2026** (GenAI.Works), track **The Agent Tha
 5. [Prefilter rules](#prefilter-rules)
 6. [Scoring](#scoring)
 7. [Model and routing transparency](#model-and-routing-transparency)
-8. [Already reported: H-MEM memory](#already-reported-h-mem-memory)
-9. [Sponsor technology and AI tools](#sponsor-technology-and-ai-tools)
-10. [Quick start](#quick-start)
-11. [Testing](#testing)
-12. [Security and data](#security-and-data)
-13. [Limitations and next steps](#limitations-and-next-steps)
-14. [Pre-existing components and third-party code](#pre-existing-components-and-third-party-code)
-15. [Data sources](#data-sources) · [License](#license)
+8. [Measurement against labelled test sets](#measurement-against-labelled-test-sets)
+9. [Already reported: H-MEM memory](#already-reported-h-mem-memory)
+10. [Sponsor technology and AI tools](#sponsor-technology-and-ai-tools)
+11. [Quick start](#quick-start)
+12. [Testing](#testing)
+13. [Security and data](#security-and-data)
+14. [Limitations and next steps](#limitations-and-next-steps)
+15. [Pre-existing components and third-party code](#pre-existing-components-and-third-party-code)
+16. [Data sources](#data-sources) · [License](#license)
 
 ## Why it matters
 
@@ -161,6 +162,50 @@ The agent requests `nvidia/nemotron-3.5-lightning-30b-a3b`. Nightshift may answe
 
 The agent therefore logs, per rating, the model that answered (`meterless.routed_model`), the latency reported by Meterless and the receipt id. `RATING_STRICT_MODEL=true` (the default) rejects any rating from another model than the requested one; development runs use `false`. Observed latency: 25–80 s per rating. `scripts/nightshift-probe.ts` documents the request variants we tested (CLAUDE.md, "Known issue: model routing").
 
+## Measurement against labelled test sets
+
+`scripts/measure-testsets.ts` compares the agent's decision with human labels. The agent says
+"relevant" if an item passes the prefilter and scores 5 or more; a failed rating counts as
+"not relevant". The prefilter runs as of each item's rating date (VF-NEU and VF-LIMIT off),
+and the rating uses the rating date as "today". Data: the saved snapshot of 2026-10-23, no new
+query. Run on 2026-10-26, 21 ratings, none failed.
+
+| Set | n | TP | FP | FN | TN | Recall (relevant) | Precision | Accuracy |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Round 1: calibration set (rated 2026-10-16) | 15 | 6 | 1 | 0 | 8 | 100 % | 86 % | 93 % |
+| Round 2: holdout set (rated 2026-10-19) | 15 | 1 | 4 | 0 | 10 | 100 % | 20 % | 73 % |
+| Combined | 30 | 7 | 5 | 0 | 18 | 100 % | 58 % | 83 % |
+
+- **No relevant item was missed** on either set: recall is 100 %, at the prefilter and at the
+  rating stage.
+- **Precision on the holdout set is 20 %.** All five false positives follow one pattern: a
+  small feature in a core product (for example pinch to zoom on shared screens in Teams, or a
+  PDF presentation mode in the OneDrive iPad app) gets `baseValue` 7 because a core product is
+  the subject, plus `actionBonus` 1 for "a concrete benefit once available". The reasoning
+  for these items is near-identical; only the feature and the GA month change.
+- **Why recall matters more here:** a person reviews every newsletter draft. A false positive
+  costs a few seconds to remove; a missed item never reaches the reviewer.
+- **Answering models:** the requested `nvidia/nemotron-3.5-lightning-30b-a3b` answered once;
+  `nvidia/nemotron-3-ultra-550b-a55b` answered 18 times and `nvidia/nemotron-3.5-super-vl-120b-a12b`
+  twice (see [routing](#model-and-routing-transparency)).
+- **Horizon:** VF-HORIZONT with M=3 and M=4 gives the same result on these sets (the only item
+  it drops has GA 2027-06, beyond both), so the choice of M is not decidable from them.
+
+**Limitations of this measurement**
+
+- Round 1 is the calibration set: the prefilter rules were derived from it.
+- The two rounds were labelled by different people with different strictness: round 1 by a
+  domain expert, round 2 by the team.
+- 30 items, 7 of them relevant: a small sample.
+- VF-HORIZONT counts whole months inclusive; this was decided on 2026-10-23, after the holdout
+  case 573696 (GA 2027-01) was known, so the holdout result for that rule is not fully independent.
+- The snapshot shows the roadmap on 2026-10-23, not on the rating date; two items were modified
+  after their rating date.
+
+**Next step (not done):** change the rubric so that a small feature in a core product does not
+reach the threshold on its own, and measure that change on a new labelled round. The rubric is
+unchanged until then.
+
 ## Already reported: H-MEM memory
 
 With `MEMORY=hmem` the agent checks each item against the memory of earlier runs, in two stages:
@@ -251,6 +296,7 @@ Empty values count as not set.
 | `npm run typecheck` | Type check of the project and of the vendored H-MEM code |
 | `npm run conformance` | H-MEM conformance suite against the vendored engine |
 | `npx tsx scripts/prefilter-report.ts data/snapshots/<file>.json --ids 573696` | Drops per rule for a saved snapshot, and the decision for selected ids (offline) |
+| `npx tsx scripts/measure-testsets.ts --dry-run` | Prefilter result per test item and the number of model calls (offline); without `--dry-run` it rates via Nightshift and writes JSON and HTML to `data/out/` (live) |
 | `npx tsx scripts/zetaris-probe.ts` | One Zetaris query with 5 rows; prints the response shape (live) |
 | `npx tsx scripts/nightshift-probe.ts data/snapshots/<file>.json H5` | One Nightshift request variant; prints only model, duration and routing metadata (live) |
 
@@ -270,8 +316,8 @@ The same flow is covered by the two-run test and was run locally with the stub a
 
 ## Testing
 
-- **83 tests** in 9 files (`test/`), run with the Node.js test runner via `tsx`. No test uses the network: Zetaris and Nightshift calls go to injected fake `fetch` functions, and the H-MEM tests replace `fetch` with one that throws.
-- **Covered:** field mapping from a real (shortened) Zetaris response; HTML stripping and entity decoding; snapshot before mapping and the row-limit warning; every prefilter rule with boundaries (window edge, year change, unknown status, mixed products, `RATE_ITEM_IDS`, `VF-LIMIT`); strict answer parsing (text around the JSON, `</think>`, invalid values), score caps, retries on invalid answers, timeouts and HTTP 5xx, strict model check, receipt metadata without receipt content, prompt-injection markers; failed ratings never scored or reported; HTML escaping and links; H-MEM stages, persistence, ledger without sleep or dreaming, and the two-run proof; maintenance windows from a synthetic ICS file (folded lines, malformed `DTSTAMP`, update on a Saturday or Sunday with both same-day settings, year change, clock change, nothing upcoming); configuration parsing (empty values count as not set).
+- **91 tests** in 10 files (`test/`), run with the Node.js test runner via `tsx`. No test uses the network: Zetaris and Nightshift calls go to injected fake `fetch` functions, and the H-MEM tests replace `fetch` with one that throws.
+- **Covered:** field mapping from a real (shortened) Zetaris response; HTML stripping and entity decoding; snapshot before mapping and the row-limit warning; every prefilter rule with boundaries (window edge, year change, unknown status, mixed products, `RATE_ITEM_IDS`, `VF-LIMIT`); strict answer parsing (text around the JSON, `</think>`, invalid values), score caps, retries on invalid answers, timeouts and HTTP 5xx, strict model check, receipt metadata without receipt content, prompt-injection markers; failed ratings never scored or reported; HTML escaping and links; H-MEM stages, persistence, ledger without sleep or dreaming, and the two-run proof; maintenance windows from a synthetic ICS file (folded lines, malformed `DTSTAMP`, update on a Saturday or Sunday with both same-day settings, year change, clock change, nothing upcoming); test-set validation and metrics; configuration parsing (empty values count as not set).
 - **Type check** (`npm run typecheck`) and **H-MEM conformance** (`npm run conformance`, 13/13).
 
 ## Security and data
@@ -288,7 +334,7 @@ The same flow is covered by the two-run test and was run locally with the stub a
 - **Summaries** are a placeholder; real summaries are planned.
 - **Newsletter output** (HTML mail to a local SMTP catcher) is planned; today the output is an internal run report.
 - **Similarity** in H-MEM uses a hash embedder (see [limitation](#already-reported-h-mem-memory)).
-- **Calibration:** a measurement of the scores against the labelled test sets is planned.
+- **Calibration:** measured on two labelled rounds, see [Measurement](#measurement-against-labelled-test-sets); precision on small features in core products is the open issue.
 - **Zetaris:** `CREATE SCHEMASTORE VIEW` on the REST table fails with "Bad Request"; the agent sends the SELECT directly.
 
 ## Pre-existing components and third-party code
