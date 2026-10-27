@@ -78,6 +78,7 @@ Every decision in a run is recorded with its reason, in the run log (`data/runs/
 ```mermaid
 flowchart LR
     MS["Microsoft 365 Roadmap<br/>public JSON API"] --> Z
+    ICS["DATEV update calendar<br/>local ICS file"] --> MW["Maintenance windows<br/>rule-based, no model"]
     subgraph Sponsors[Sponsor components]
         Z["Zetaris<br/>Lightning REST table + SQL"]
         NS["Meterless Nightshift<br/>NVIDIA Nemotron"]
@@ -88,8 +89,12 @@ flowchart LR
     MEM -->|"check url, then similarity"| HM
     MEM -->|new items| RT["4 Rate<br/>components to score"]
     RT -->|"strict JSON, no tools"| NS
-    RT --> SU["5 Summarise<br/>placeholder"]
+    RT --> SU["5 Summarise<br/>items above the threshold"]
+    SU -->|"strict JSON, no tools"| NS
     SU --> OUT["6 Output<br/>HTML run report"]
+    SU --> NL["6b Newsletter<br/>OUTPUT=newsletter<br/>SMTP to localhost only (Mailpit)"]
+    MW --> OUT
+    MW --> NL
     OUT -.->|"MEMORY_MARK=true"| HM
 ```
 
@@ -111,8 +116,8 @@ All stub adapters are the defaults, so `npm run run` without any configuration r
 | 1. Fetch | Microsoft 365 Roadmap items are read through Zetaris (SQL over REST); the raw response is saved to `data/snapshots/` before mapping | Working |
 | 2. Prefilter | Rules without AI, each with an id and a reason ([table](#prefilter-rules)) | Working |
 | 3. Already reported? | Exact URL first, then similarity in H-MEM memory | Working (opt-in, `MEMORY=hmem`) |
-| 4. Rate | Nemotron via Nightshift returns score components; the score is computed in code | Working |
-| 5. Summarise | Nemotron via Nightshift writes a summary and "why this matters" for readers, only for items above the threshold | Working |
+| 4. Rate | Nemotron via Nightshift returns score components; the score is computed in code | Working (live with `RATER=nightshift`; default stub) |
+| 5. Summarise | Nemotron via Nightshift writes a summary and "why this matters" for readers, only for items above the threshold | Working (live with `RATER=nightshift`; default stub) |
 | 6. Output | HTML run report in `data/out/` | Working |
 | 6b. Newsletter | Newsletter draft as HTML mail, written to `data/out/` and sent only to a local SMTP catcher ([details](#newsletter-draft)) | Working (opt-in, `OUTPUT=newsletter`) |
 | Second source | DATEV update calendar (ICS file): upcoming maintenance windows with the rule that explains them ([details](#maintenance-windows)) | Working (opt-in, `DATEV_MAINTENANCE_ICS_PATH`) |
@@ -202,7 +207,8 @@ The agent therefore logs, per rating, the model that answered (`meterless.routed
 "relevant" if an item passes the prefilter and scores 5 or more; a failed rating counts as
 "not relevant". The prefilter runs as of each item's rating date (VF-NEU and VF-LIMIT off),
 and the rating uses the rating date as "today". Data: the saved snapshot of 2026-10-23, no new
-query. Run on 2026-10-26, 21 ratings, none failed.
+query. Run on 2026-10-26, 21 ratings, none failed. Results are written to
+`data/out/measure-<timestamp>.json` (not in the repository).
 
 | Set | n | TP | FP | FN | TN | Recall (relevant) | Precision | Accuracy |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -275,7 +281,7 @@ The full statement for the submission form (rule 6.4) is in [`docs/sponsor-state
 
 ```bash
 npm install
-npm test          # 83 tests, no network
+npm test          # 126 tests, no network
 npm run run       # full pipeline with stub adapters, writes data/out/<run>.html
 ```
 
@@ -377,7 +383,7 @@ The same flow is covered by the two-run test and was run locally with the stub a
 
 ## Limitations and next steps
 
-- **Routing and latency:** Nightshift answers with a routed Nemotron model and takes 25–80 s per rating; ratings run one after another. A full run (115 items on the snapshot) takes a long time; `RATE_MAX_ITEMS` and `RATE_ITEM_IDS` limit it.
+- **Routing and latency:** Nightshift answers with a routed Nemotron model and takes 25–80 s per rating; newsletter calls took 40–115 s per call ([PROGRESS.md](PROGRESS.md), 2026-10-26); calls run one after another. A full run (115 items on the snapshot) takes a long time; `RATE_MAX_ITEMS` and `RATE_ITEM_IDS` limit it.
 - **Newsletter:** a draft for review, sent only to a local SMTP catcher; there is no mailing list, no unsubscribe and no real delivery. The rating reasoning stays in `RATING_LANGUAGE`.
 - **Similarity** in H-MEM uses a hash embedder (see [limitation](#already-reported-h-mem-memory)).
 - **Calibration:** measured on two labelled rounds, see [Measurement](#measurement-against-labelled-test-sets); precision on small features in core products is the open issue.
@@ -395,18 +401,24 @@ No project code was written or committed before the build window opened on 22 Oc
 ### Repository layout
 
 ```
+assets/                   Logo and README screenshots (newsletter versions, run report)
 config/profile.m365.json  Relevance profile: audience, core products, out-of-scope products, rubric
 config/brand.json         Newsletter colors (dark theme from the logo), font stack, repository link
 config/signature.example.json  Newsletter signature format with placeholders (real file under data/brand/)
 docs/sponsor-statement.md Sponsor technology statement for the submission form (rule 6.4)
-scripts/                  Conformance runner wrapper, test-set measurement, offline/live probes
+scripts/                  Conformance runner wrapper, offline/live probes, and:
+  measure-testsets.ts     Test-set measurement (dry run offline, rating live)
+  prefilter-report.ts     Drops per rule for a saved snapshot (offline)
+  render-newsletter.ts    Newsletter for both audiences from a run log, without model calls
 src/domain/               Types, relevance profile and brand loaders, maintenance window rule
-src/ports/                Interfaces: news source, memory store, rating model, output
+src/ports/                Interfaces: news source, memory store, rating model, output,
+                          maintenance calendar (maintenance-calendar.ts)
 src/adapters/             Zetaris, Nightshift, H-MEM, HTML report, newsletter mail, ICS calendar, stubs
 src/measure/              Test-set measurement (metrics and report)
-src/pipeline/             Prefilter rules and the pipeline run
+src/pipeline/             Prefilter rules, the pipeline run, report rebuilt from a run log (report-from-log.ts)
 src/main.ts               Entry point (configuration from .env)
-test/                     Tests and a shortened real Zetaris response as fixture
+test/                     Tests; fixtures: a shortened real Zetaris response and a synthetic
+                          ICS calendar (fixtures/maintenance-sample.ics)
 vendor/hmem/              Vendored H-MEM reference (third-party, Apache-2.0, unchanged)
 zetaris/m365_roadmap.sql  Zetaris REST table and queries for the Microsoft 365 Roadmap
 CLAUDE.md                 Project context for Claude Code
@@ -417,7 +429,8 @@ PROGRESS.md               Daily progress log
 
 | Source | Access | Use |
 | --- | --- | --- |
-| [Microsoft 365 Roadmap](https://www.microsoft.com/microsoft-365/roadmap) | Public JSON API, no authentication | Titles, descriptions (used for rating only) and links to the original items; own short summaries are planned; terms of use are under review |
+| [Microsoft 365 Roadmap](https://www.microsoft.com/microsoft-365/roadmap) | Public JSON API, no authentication | Titles, descriptions (used for rating and summaries only) and links to the original items; the newsletter shows own short summaries written by the model, not source text; terms of use are under review |
+| DATEV update calendar (ICS) | File kept locally under `data/`, not in the repository | Update dates for the maintenance windows; terms of use under review |
 
 ## License
 
