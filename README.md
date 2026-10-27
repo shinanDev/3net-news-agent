@@ -282,8 +282,12 @@ The full statement for the submission form (rule 6.4) is in [`docs/sponsor-state
 ```bash
 npm install
 npm test          # 126 tests, no network
+npm run typecheck
+npm run conformance   # H-MEM conformance, 13/13
 npm run run       # full pipeline with stub adapters, writes data/out/<run>.html
 ```
+
+The stub run uses three fictional items; the prefilter drops one, so two reach the stub model. On macOS, `npm install` may print an allow-scripts warning for `fsevents`; it is harmless. Live runs were done on Windows 11 (PowerShell); the clean-setup check (stub run, tests, conformance) was run on macOS with Node 24.
 
 For live runs:
 
