@@ -10,6 +10,7 @@ Newest entries first. One entry per working day: what was done, what was decided
 - README checked section by section against `src/`, `config/`, `scripts/`, `test/` and `package.json`, then corrected (commit `59727c1`): test count in the quick start (126 instead of 83); architecture diagram with real summaries, the newsletter output (localhost SMTP only) and the DATEV calendar as second source with the rule-based maintenance windows; rate and summarise marked as live with `RATER=nightshift`, stub by default; latency of newsletter calls (40–115 s); where measurement results are written; repository layout (`assets/`, maintenance calendar port, report from run log, ICS fixture, scripts); data sources with the DATEV calendar row, summaries no longer "planned".
 - `docs/sponsor-statement.md` checked; it matches the code, no change.
 - README quick start completed (commit `1dc6f7c`): `npm run typecheck` and `npm run conformance` (13/13); the stub run uses three fictional items, two reach the stub model; note on the harmless `fsevents` allow-scripts warning on macOS; live runs on Windows 11 (PowerShell), clean-setup check (stub run, tests, conformance) on macOS with Node 24.
+- Architecture diagram checked on GitHub; renders correctly.
 
 **Decided**
 - Measurement numbers stay as reported in the README; raw results stay in `data/out/measure-<timestamp>.json`, not in the repository.
@@ -19,7 +20,6 @@ Newest entries first. One entry per working day: what was done, what was decided
 - The Mermaid diagram cannot be validated locally without installing a tool; it was checked by hand.
 
 **Open**
-- Check that the architecture diagram renders on GitHub.
 - Terms of use of the Microsoft 365 Roadmap and the DATEV calendar are under review.
 - Still open from 2026-10-26: rubric change for small features in core products (new labelled round); Nightshift app policy and cached answers.
 
